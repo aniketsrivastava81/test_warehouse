@@ -137,6 +137,7 @@ body.game-active #game-status{display:block;}
 <div id="toolbar">
   <button data-view="inside" class="active">Interior</button>
   <button data-view="wide">Wide Shot</button>
+  <button data-view="wideinside">Wide Shot Inside</button>
   <button data-view="aisle">Down Aisle</button>
   <button data-view="overhead">Overhead</button>
   <button data-view="dock">Dock Side</button>
@@ -227,9 +228,13 @@ scene.background=new THREE.Color(0xcfe6ff);
 scene.fog=new THREE.FogExp2(0xcfe6ff,0.0045);
 
 const camera=new THREE.PerspectiveCamera(55,W/H,0.1,300);
-//let rotX=-0.12,rotY=0.0,dist=22,camAnim=null;
-let rotX=0.22,rotY=1.18,dist=34,camAnim=null;
+// THIS IS V1 
+// let rotX=-0.12,rotY=0.0,dist=22,camAnim=null;
+// THIS IS V2 
+// let rotX=0.22,rotY=1.18,dist=34,camAnim=null;
+
 //changed camera line
+let rotX=0.14,rotY=1.57,dist=20,camAnim=null;
 
 function applyCamera(){
   const cx=Math.cos(rotY)*Math.cos(rotX)*dist;
@@ -1405,7 +1410,7 @@ function updateScene(t){
   sitebird: [-0.95,-0.72,112],
 };
 */
-
+/*
 // New Const Views
 const views={
   inside:   [0.22, 1.18, 34],
@@ -1416,6 +1421,22 @@ const views={
   street:   [0.12, 3.14,78],
   sitebird: [0.92,-0.72,112],
 };
+
+*/
+
+
+//v3 of the views const
+const views={
+  inside:     [0.14, 1.57, 20],
+  wide:       [0.34, 0.96, 42],
+  wideinside: [0.30, 1.57, 24],
+  aisle:      [0.08, 1.57, 23],
+  overhead:   [1.52, 1.57, 24],
+  dock:       [0.18,-1.57,48],
+  street:     [0.12, 3.14,78],
+  sitebird:   [0.92,-0.72,112],
+};
+
 
 function setActiveView(name){
   document.querySelectorAll('#toolbar [data-view]').forEach(btn=>{
