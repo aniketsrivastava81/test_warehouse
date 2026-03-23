@@ -227,7 +227,9 @@ scene.background=new THREE.Color(0xcfe6ff);
 scene.fog=new THREE.FogExp2(0xcfe6ff,0.0045);
 
 const camera=new THREE.PerspectiveCamera(55,W/H,0.1,300);
-let rotX=-0.12,rotY=0.0,dist=22,camAnim=null;
+//let rotX=-0.12,rotY=0.0,dist=22,camAnim=null;
+let rotX=0.22,rotY=1.18,dist=34,camAnim=null;
+//changed camera line
 
 function applyCamera(){
   const cx=Math.cos(rotY)*Math.cos(rotX)*dist;
@@ -1393,7 +1395,7 @@ function updateScene(t){
 // ─────────────────────────────────────────────────────────────────────────────
 // TOOLBAR / CAMERA PRESETS
 // ─────────────────────────────────────────────────────────────────────────────
-const views={
+/*const views={
   inside:   [-0.12, 0.00, 22],
   wide:     [-0.28, 0.78, 36],
   aisle:    [-0.06, 0.01, 16],
@@ -1401,6 +1403,18 @@ const views={
   dock:     [-0.18,-Math.PI/2,48],
   street:   [-0.12,Math.PI,78],
   sitebird: [-0.95,-0.72,112],
+};
+*/
+
+// New Const Views
+const views={
+  inside:   [0.22, 1.18, 34],
+  wide:     [0.34, 0.96, 42],
+  aisle:    [0.10, 1.57, 32],
+  overhead: [1.52, 1.57, 24],
+  dock:     [0.18,-1.57,48],
+  street:   [0.12, 3.14,78],
+  sitebird: [0.92,-0.72,112],
 };
 
 function setActiveView(name){
