@@ -1,4 +1,4 @@
-import { formatTime, getRank, lerpLabel } from '../utils/helpers.js';
+import { formatTime, getRank } from '../utils/helpers.js';
 
 export class HUD {
   constructor(root) {
@@ -7,49 +7,63 @@ export class HUD {
   }
 
   build() {
+    this.shellOverlay = document.createElement('div');
+    this.shellOverlay.className = 'shell-overlay';
+    this.root.appendChild(this.shellOverlay);
+
     this.container = document.createElement('div');
     this.container.className = 'hud';
     this.container.innerHTML = `
-      <div class="hud__top">
-        <div class="hud-card"><span class="hud-label">Timer</span><strong class="hud-value" data-time>0:24</strong></div>
-        <div class="hud-card"><span class="hud-label">Score</span><strong class="hud-value" data-score>0</strong></div>
-        <div class="hud-card"><span class="hud-label">Progress</span><strong class="hud-value" data-progress>0 / 12</strong></div>
-        <div class="hud-card"><span class="hud-label">Rank Pace</span><strong class="hud-value" data-rank>C</strong></div>
+      <div class="hud__brand">
+        <span class="hud__eyebrow">Interactive warehouse logistics challenge</span>
+        <span class="hud__title">Megha Mehta Real Estate</span>
+        <span class="hud__sub">Tap pallet, tap matching bay. Overhead crane travel is part of the timer. Four escalating levels. Mobile-friendly by design.</span>
       </div>
-      <div class="hud__combo" data-combo>Perfect x2</div>
+
+      <div class="hud__top">
+        <div class="hud-card"><span class="hud-label">Level</span><strong class="hud-value" data-level>1 / 4</strong></div>
+        <div class="hud-card"><span class="hud-label">Timer</span><strong class="hud-value" data-time>0:00</strong></div>
+        <div class="hud-card"><span class="hud-label">Score</span><strong class="hud-value" data-score>0</strong></div>
+        <div class="hud-card"><span class="hud-label">Progress</span><strong class="hud-value" data-progress>0 / 0</strong></div>
+        <div class="hud-card"><span class="hud-label">Crane Speed</span><strong class="hud-value hud-value--good" data-speed>100%</strong></div>
+      </div>
+
+      <div class="hud__combo" data-combo>Perfect lift x2</div>
+
       <div class="hud__bottom">
-        <div class="hud__hint"><strong>How to play:</strong> drag each pallet to a matching color bay. Wrong drops cost time.</div>
-        <div class="hud__status" data-status><strong>Status:</strong> waiting for shift start.</div>
+        <div class="hud__panel"><strong>Controls:</strong> Tap or click any pallet to lock it to the crane. Then tap a matching color bay. Wrong bay taps cut time immediately.</div>
+        <div class="hud__panel hud__panel--right" data-status><strong>Status:</strong> waiting for shift start.</div>
       </div>
     `;
     this.root.appendChild(this.container);
 
+    this.levelEl = this.container.querySelector('[data-level]');
     this.timeEl = this.container.querySelector('[data-time]');
     this.scoreEl = this.container.querySelector('[data-score]');
     this.progressEl = this.container.querySelector('[data-progress]');
-    this.rankEl = this.container.querySelector('[data-rank]');
+    this.speedEl = this.container.querySelector('[data-speed]');
     this.statusEl = this.container.querySelector('[data-status]');
     this.comboEl = this.container.querySelector('[data-combo]');
 
     this.startOverlay = this.createOverlay({
-      title: 'End of Shift',
-      subtitle: 'Bay Sort Challenge',
+      title: 'Crane Rush',
+      subtitle: 'Immediate stress mode',
       body: `
-        <p>Clear the inbound backlog before the truck window closes. Every pallet has a color and every bay has a matching slot. Snap them in fast, keep the combo alive, and chase an S rank.</p>
+        <p>The room is fuller, the crane is slower every level, and the timer never waits. This version is built to inherit the warehouse shell, interior mood, and rack language from your uploaded base file while shifting gameplay to tap-based crane routing.</p>
         <ul>
-          <li>12 pallets per round</li>
-          <li>Wrong drop: -3 seconds</li>
-          <li>Perfect snaps build score faster</li>
+          <li>4 escalating levels</li>
+          <li>60 routed pallets in a full clean run</li>
+          <li>Random Megha Mehta Real Estate branded wraps</li>
         </ul>
       `,
-      actions: `<button class="button" data-action="start">Start Shift</button>`
+      actions: `<button class="button" data-action="start">Start the shift</button>`
     });
 
     this.endOverlay = this.createOverlay({
-      title: 'Shift Complete',
+      title: 'Shift complete',
       subtitle: 'Results',
       body: `
-        <p data-summary>You cleared the floor.</p>
+        <p data-summary>The crane window is closed.</p>
         <div class="results-grid">
           <div class="results-card"><span class="results-card__label">Score</span><span class="results-card__value" data-result-score>0</span></div>
           <div class="results-card"><span class="results-card__label">Rank</span><span class="results-card__value" data-result-rank>C</span></div>
@@ -58,11 +72,11 @@ export class HUD {
         </div>
       `,
       actions: `
-        <button class="button" data-action="restart">Run It Back</button>
+        <button class="button" data-action="continue" hidden>Continue</button>
+        <button class="button" data-action="restart">Restart full run</button>
         <button class="button button--secondary" data-action="close">Close</button>
       `
     });
-
     this.endOverlay.hidden = true;
 
     this.endSummaryEl = this.endOverlay.querySelector('[data-summary]');
@@ -70,6 +84,7 @@ export class HUD {
     this.endRankEl = this.endOverlay.querySelector('[data-result-rank]');
     this.endAccuracyEl = this.endOverlay.querySelector('[data-result-accuracy]');
     this.endPerfectEl = this.endOverlay.querySelector('[data-result-perfect]');
+    this.continueBtn = this.endOverlay.querySelector('[data-action="continue"]');
   }
 
   createOverlay({ title, subtitle, body, actions }) {
@@ -89,57 +104,61 @@ export class HUD {
 
   on(action, handler) {
     this.root.addEventListener('click', (event) => {
-      const target = event.target.closest(`[data-action="${action}"]`);
-      if (target) handler(event);
+      const trigger = event.target.closest(`[data-action="${action}"]`);
+      if (trigger) handler(event);
     });
   }
 
   update(state) {
+    this.levelEl.textContent = `${state.currentLevelIndex + 1} / ${state.totalLevels}`;
     this.timeEl.textContent = formatTime(state.timeLeft);
-    this.scoreEl.textContent = state.score.toString();
+    this.scoreEl.textContent = String(state.score);
     this.progressEl.textContent = `${state.placedCount} / ${state.totalCount}`;
-    this.rankEl.textContent = getRank(state.score);
+    this.speedEl.textContent = state.craneSpeedLabel;
     this.statusEl.innerHTML = `<strong>Status:</strong> ${state.statusText}`;
 
     this.timeEl.classList.remove('hud-value--warn', 'hud-value--danger');
-    if (state.timeLeft <= 8) this.timeEl.classList.add('hud-value--warn');
-    if (state.timeLeft <= 4) this.timeEl.classList.add('hud-value--danger');
-
-    const progress = state.totalCount ? state.placedCount / state.totalCount : 0;
-    this.statusEl.innerHTML = `<strong>${lerpLabel(progress)}:</strong> ${state.statusText}`;
+    if (state.timeLeft <= 10) this.timeEl.classList.add('hud-value--warn');
+    if (state.timeLeft <= 5) this.timeEl.classList.add('hud-value--danger');
   }
 
   showCombo(text) {
     this.comboEl.textContent = text;
     this.comboEl.classList.add('is-visible');
-    clearTimeout(this.comboTimeout);
-    this.comboTimeout = window.setTimeout(() => {
-      this.comboEl.classList.remove('is-visible');
-    }, 650);
+    window.clearTimeout(this.comboTimeout);
+    this.comboTimeout = window.setTimeout(() => this.comboEl.classList.remove('is-visible'), 680);
   }
 
-  showStart() {
-    this.startOverlay.hidden = false;
-    this.endOverlay.hidden = true;
-  }
+  showStart() { this.startOverlay.hidden = false; }
+  hideStart() { this.startOverlay.hidden = true; }
 
-  hideStart() {
-    this.startOverlay.hidden = true;
-  }
-
-  showEnd(state, didWin) {
+  showEnd(state, { didWin, isSessionWin, nextLevel = null }) {
     this.endOverlay.hidden = false;
     this.endScoreEl.textContent = String(state.score);
     this.endRankEl.textContent = getRank(state.score);
     this.endAccuracyEl.textContent = `${Math.round(state.accuracy)}%`;
     this.endPerfectEl.textContent = String(state.perfectDrops);
-    this.endSummaryEl.textContent = didWin
-      ? 'Warehouse cleared. Nice. That one is ready for a screen recording.'
-      : 'Time ran out. The floor is still jammed — retry and chase the clean run.';
-    this.endOverlay.querySelector('h1').textContent = didWin ? 'Shift Complete' : 'Truck Window Missed';
+    const heading = this.endOverlay.querySelector('h1');
+
+    if (!didWin) {
+      heading.textContent = 'Dispatch window missed';
+      this.endSummaryEl.textContent = 'The timer expired before the crane cleared the floor. Restart the run and route faster.';
+      this.continueBtn.hidden = true;
+      return;
+    }
+
+    if (!isSessionWin) {
+      heading.textContent = 'Level cleared';
+      this.endSummaryEl.textContent = `Good. ${nextLevel?.label ?? 'Next level'} is slower and denser. Keep the score and continue.`;
+      this.continueBtn.hidden = false;
+      this.continueBtn.textContent = `Continue to ${nextLevel?.label ?? 'next level'}`;
+      return;
+    }
+
+    heading.textContent = 'Full run cleared';
+    this.endSummaryEl.textContent = 'All four levels cleared. This version is ready for longer dwell time, harder routing, and cleaner short-form captures.';
+    this.continueBtn.hidden = true;
   }
 
-  hideEnd() {
-    this.endOverlay.hidden = true;
-  }
+  hideEnd() { this.endOverlay.hidden = true; }
 }

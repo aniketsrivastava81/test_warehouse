@@ -13,9 +13,4 @@ export class RaycastPicker {
   pick(objects = []) {
     return this.raycaster.intersectObjects(objects, true);
   }
-
-  intersectPlane(plane, target = new THREE.Vector3()) {
-    this.raycaster.ray.intersectPlane(plane, target);
-    return target;
-  }
 }

@@ -6,15 +6,8 @@ export function formatTime(seconds) {
 }
 
 export function getRank(score) {
-  if (score >= 1900) return 'S';
-  if (score >= 1450) return 'A';
-  if (score >= 1050) return 'B';
+  if (score >= 26000) return 'S';
+  if (score >= 19000) return 'A';
+  if (score >= 13000) return 'B';
   return 'C';
-}
-
-export function lerpLabel(progress) {
-  if (progress >= 1) return 'Shift cleared';
-  if (progress >= 0.66) return 'Almost sorted';
-  if (progress >= 0.33) return 'Keep stacking';
-  return 'Inbound backlog';
 }

@@ -4,9 +4,10 @@ export class Renderer {
   constructor() {
     this.instance = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.instance.outputColorSpace = THREE.SRGBColorSpace;
+    this.instance.toneMapping = THREE.ACESFilmicToneMapping;
+    this.instance.toneMappingExposure = 1.6;
     this.instance.shadowMap.enabled = true;
     this.instance.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.instance.setClearColor('#090b11');
     this.resize();
   }
 

@@ -5,19 +5,20 @@ export class ScoreManager {
     this.state = state;
   }
 
-  reset() {
+  resetSession() {
     this.state.score = 0;
   }
 
-  addPlacement({ isPerfect, multiplier }) {
-    let points = GAME_CONFIG.BASE_SCORE * multiplier;
-    if (isPerfect) points += GAME_CONFIG.PERFECT_BONUS;
-    this.state.score += points;
-    return points;
+  addPlacement({ perfect, combo, levelMultiplier }) {
+    let points = GAME_CONFIG.BASE_SCORE * combo * levelMultiplier;
+    if (perfect) points += GAME_CONFIG.PERFECT_BONUS * levelMultiplier;
+    this.state.score += Math.round(points);
+    return Math.round(points);
   }
 
-  addFinishBonus() {
-    this.state.score += GAME_CONFIG.FINISH_BONUS;
-    return GAME_CONFIG.FINISH_BONUS;
+  addLevelClear(levelIndex) {
+    const bonus = GAME_CONFIG.LEVEL_CLEAR_BONUS * (levelIndex + 1);
+    this.state.score += bonus;
+    return bonus;
   }
 }

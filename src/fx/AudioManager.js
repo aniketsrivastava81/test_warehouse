@@ -1,7 +1,6 @@
 export class AudioManager {
   constructor() {
     this.ctx = null;
-    this.enabled = false;
   }
 
   ensureContext() {
@@ -9,47 +8,54 @@ export class AudioManager {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioContext();
     }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-    this.enabled = true;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
   }
 
-  beep({ frequency = 440, duration = 0.08, type = 'sine', gain = 0.025, ramp = 'exponential' }) {
-    if (!this.enabled) return;
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
-    const oscillator = ctx.createOscillator();
-    const amp = ctx.createGain();
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, now);
-    amp.gain.setValueAtTime(0.0001, now);
-    amp.gain[ramp === 'linear' ? 'linearRampToValueAtTime' : 'exponentialRampToValueAtTime'](gain, now + 0.01);
-    amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    oscillator.connect(amp).connect(ctx.destination);
-    oscillator.start(now);
-    oscillator.stop(now + duration + 0.02);
+  beep({ frequency = 440, duration = 0.08, type = 'sine', gain = 0.025, ramp = 'exp' }) {
+    if (!this.ctx) return;
+    const time = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const amp = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, time);
+    amp.gain.setValueAtTime(0.0001, time);
+    if (ramp == 'linear') amp.gain.linearRampToValueAtTime(gain, time + 0.01);
+    else amp.gain.exponentialRampToValueAtTime(gain, time + 0.01);
+    amp.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    osc.connect(amp).connect(this.ctx.destination);
+    osc.start(time);
+    osc.stop(time + duration + 0.02);
   }
 
   snap() {
-    this.beep({ frequency: 560, duration: 0.06, type: 'triangle', gain: 0.04 });
-    this.beep({ frequency: 860, duration: 0.04, type: 'sine', gain: 0.02 });
+    this.beep({ frequency: 620, duration: 0.06, type: 'square', gain: 0.028 });
+    window.setTimeout(() => this.beep({ frequency: 820, duration: 0.05, type: 'triangle', gain: 0.018 }), 36);
   }
 
   invalid() {
-    this.beep({ frequency: 240, duration: 0.08, type: 'sawtooth', gain: 0.03 });
+    this.beep({ frequency: 180, duration: 0.12, type: 'sawtooth', gain: 0.02 });
+    window.setTimeout(() => this.beep({ frequency: 120, duration: 0.1, type: 'sawtooth', gain: 0.018 }), 56);
   }
 
-  combo(level = 2) {
-    this.beep({ frequency: 640 + level * 30, duration: 0.05, type: 'square', gain: 0.025 });
+  select() {
+    this.beep({ frequency: 520, duration: 0.05, type: 'triangle', gain: 0.016 });
+  }
+
+  combo(multiplier = 2) {
+    this.beep({ frequency: 700 + multiplier * 60, duration: 0.06, type: 'triangle', gain: 0.02 });
   }
 
   warning() {
-    this.beep({ frequency: 320, duration: 0.05, type: 'triangle', gain: 0.02 });
+    this.beep({ frequency: 260, duration: 0.1, type: 'square', gain: 0.02, ramp: 'linear' });
+  }
+
+  levelClear() {
+    this.beep({ frequency: 660, duration: 0.08, type: 'triangle', gain: 0.02 });
+    window.setTimeout(() => this.beep({ frequency: 880, duration: 0.12, type: 'triangle', gain: 0.022 }), 80);
   }
 
   finish() {
-    this.beep({ frequency: 520, duration: 0.1, type: 'sine', gain: 0.03 });
-    setTimeout(() => this.beep({ frequency: 780, duration: 0.12, type: 'sine', gain: 0.03 }), 80);
+    this.levelClear();
+    window.setTimeout(() => this.beep({ frequency: 1120, duration: 0.16, type: 'triangle', gain: 0.026 }), 180);
   }
 }

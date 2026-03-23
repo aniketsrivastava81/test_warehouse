@@ -3,13 +3,13 @@ import { GAME_CONFIG } from '../utils/constants.js';
 
 export class CameraManager {
   constructor() {
-    this.instance = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.instance = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 250);
     this.defaultPosition = new THREE.Vector3(
       GAME_CONFIG.CAMERA_DEFAULT.x,
       GAME_CONFIG.CAMERA_DEFAULT.y,
       GAME_CONFIG.CAMERA_DEFAULT.z
     );
-    this.lookTarget = new THREE.Vector3(4.5, 0, 0.2);
+    this.lookTarget = new THREE.Vector3(1.2, 1.1, 0.5);
     this.reset();
   }
 
