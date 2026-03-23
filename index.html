@@ -1,16 +1,1896 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Megha Mehta Real Estate — Crane Rush</title>
-    <meta
-      name="description"
-      content="A detailed Three.js warehouse crane game with four escalating levels, slower crane speeds, mobile-friendly tap controls, and branded pallet wraps."
-    />
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GTA Industrial Warehouse — Interior View</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;}
+body{background:#05060a;color:#e0ddd8;font-family:'DM Mono',monospace;}
+#canvas{display:block;width:100vw;height:100vh;}
+
+#toolbar{
+  position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  z-index:50;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;
+}
+#toolbar button{
+  background:rgba(18,22,28,.88);
+  border:1px solid rgba(255,255,255,.10);
+  color:#aab;padding:7px 14px;border-radius:20px;cursor:pointer;
+  font-size:11px;letter-spacing:.5px;font-family:'DM Mono',monospace;
+  transition:background .15s,color .15s,border-color .15s,transform .15s;
+  backdrop-filter:blur(8px);
+}
+#toolbar button:hover{background:rgba(35,42,52,.95);color:#fff;border-color:rgba(255,255,255,.22);}
+#toolbar button.active{background:rgba(200,40,40,.25);border-color:#cc2a2a;color:#ff8080;}
+#toolbar button.toggle-on{background:rgba(76,120,210,.22);border-color:rgba(110,150,255,.55);color:#cfe0ff;}
+
+#ui{
+  position:fixed;top:72px;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:22px 32px;pointer-events:none;z-index:10;
+}
+#title{font-size:9px;letter-spacing:3px;color:#2a2a2a;text-transform:uppercase;line-height:2.2;}
+#title strong{display:block;font-size:13px;color:#585450;letter-spacing:2px;margin-bottom:6px;}
+#title em{font-style:normal;color:#222;font-size:9px;letter-spacing:2px;}
+
+#phase-display{font-size:9px;letter-spacing:3px;text-align:right;line-height:2.4;}
+#phase-display span{
+  display:block;font-size:10px;color:#1e1e1e;letter-spacing:3px;
+  transition:color .45s ease,text-shadow .45s ease;
+}
+#phase-display span.active{color:#a8a49c;text-shadow:0 0 20px rgba(200,196,188,.22);}
+
+#progress-bar{position:fixed;bottom:0;left:0;right:0;height:1px;background:#0e0e0e;z-index:10;}
+#progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,transparent,#3a3836 20%,#888480 50%,#3a3836 80%,transparent);
+  width:0%;transition:width .1s linear;
+}
+
+#callout{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+  text-align:center;pointer-events:none;z-index:10;white-space:nowrap;
+}
+#callout-name{font-size:9px;letter-spacing:3px;color:#383432;transition:color .35s ease;}
+#callout-sub{display:block;font-size:8px;letter-spacing:2px;color:#1e1c1a;margin-top:5px;transition:color .35s ease;}
+#callout-name.live{color:#807c78;}
+#callout-sub.live{color:#383432;}
+
+#hint{position:fixed;bottom:64px;left:32px;color:#24262b;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;z-index:10;pointer-events:none;}
+
+#vignette{
+  position:fixed;inset:0;pointer-events:none;z-index:5;
+  background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 38%,rgba(5,6,10,.48) 72%,rgba(5,6,10,.90) 100%);
+}
+#scanlines{
+  position:fixed;inset:0;pointer-events:none;z-index:6;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.028) 3px,rgba(0,0,0,.028) 4px);
+}
+/* ───────────────── GAME MODE ───────────────── */
+body.game-active #ui,
+body.game-active #callout,
+body.game-active #progress-bar{opacity:0;pointer-events:none;transition:opacity .25s ease;}
+#gameBtn{position:relative;overflow:hidden;}
+#gameBtn::after{
+  content:'';position:absolute;inset:-1px;
+  background:linear-gradient(120deg,transparent 0%,rgba(255,255,255,.18) 40%,transparent 80%);
+  transform:translateX(-120%);transition:transform .8s ease;
+}
+#gameBtn.toggle-on::after,#gameBtn:hover::after{transform:translateX(120%);}
+#game-hud{
+  position:fixed;top:72px;right:24px;z-index:16;display:none;gap:10px;flex-wrap:wrap;
+  width:min(780px,calc(100vw - 48px));justify-content:flex-end;pointer-events:none;
+}
+#game-hud .gcard{
+  min-width:132px;padding:14px 16px;border-radius:20px;
+  background:rgba(18,22,28,.78);border:1px solid rgba(255,255,255,.10);
+  backdrop-filter:blur(12px);box-shadow:0 18px 36px rgba(0,0,0,.28);
+}
+#game-hud .glabel{display:block;font-size:9px;letter-spacing:3px;color:#9aa3ad;text-transform:uppercase;margin-bottom:8px;}
+#game-hud .gvalue{display:block;font-size:20px;line-height:1;color:#eef4ff;font-weight:700;}
+#game-hud .gvalue.good{color:#7dffae;}
+#game-hud .gvalue.warn{color:#ffd56b;}
+#game-brand{
+  position:fixed;top:88px;left:24px;z-index:16;display:none;max-width:min(430px,calc(100vw - 48px));
+  padding:16px 18px;border-radius:22px;background:rgba(18,22,28,.78);border:1px solid rgba(255,255,255,.10);
+  backdrop-filter:blur(12px);box-shadow:0 18px 36px rgba(0,0,0,.28);
+}
+#game-brand small{display:block;font-size:9px;letter-spacing:3px;color:#9aa3ad;text-transform:uppercase;margin-bottom:8px;}
+#game-brand strong{display:block;font-family:'Playfair Display',serif;font-size:20px;letter-spacing:.4px;color:#eef4ff;margin-bottom:8px;}
+#game-brand span{display:block;font-size:11px;line-height:1.65;color:#d3dbe6;}
+#game-help,#game-status{
+  position:fixed;left:24px;bottom:24px;z-index:16;display:none;max-width:min(520px,calc(100vw - 48px));
+  padding:14px 16px;border-radius:18px;background:rgba(10,14,18,.76);border:1px solid rgba(255,255,255,.10);
+  backdrop-filter:blur(12px);box-shadow:0 18px 36px rgba(0,0,0,.28);font-size:11px;line-height:1.7;color:#d6dde8;
+}
+#game-status{left:auto;right:24px;bottom:24px;text-align:right;max-width:min(440px,calc(100vw - 48px));}
+body.game-active #game-hud,
+body.game-active #game-brand,
+body.game-active #game-help,
+body.game-active #game-status{display:flex;}
+body.game-active #game-brand,
+body.game-active #game-help,
+body.game-active #game-status{display:block;}
+@media (max-width:900px){
+  #toolbar{top:10px;width:calc(100vw - 20px)}
+  #game-brand{top:auto;left:16px;right:16px;bottom:120px;max-width:none;}
+  #game-hud{top:74px;left:16px;right:16px;width:auto;justify-content:flex-start;}
+  #game-hud .gcard{min-width:118px;flex:1 1 118px;}
+  #game-help,#game-status{left:16px;right:16px;max-width:none;}
+  #game-status{bottom:16px;text-align:left;}
+  #game-help{bottom:88px;}
+}
+
+
+
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="vignette"></div>
+<div id="scanlines"></div>
+
+<div id="toolbar">
+  <button data-view="inside" class="active">Interior</button>
+  <button data-view="wide">Wide Shot</button>
+  <button data-view="aisle">Down Aisle</button>
+  <button data-view="overhead">Overhead</button>
+  <button data-view="dock">Dock Side</button>
+  <button data-view="street">Horner Ave</button>
+  <button data-view="sitebird">Site Bird</button>
+  <button id="animateBtn">Animate</button>
+  <button id="wireBtn">Wireframe</button>
+  <button id="resetBtn">Reset</button>
+  <button id="gameBtn">Game Mode</button>
+  <button id="extShellBtn" class="toggle-on">Exterior Shell</button>
+  <button id="logisticsBtn" class="toggle-on">Logistics</button>
+  <button id="groundBtn" class="toggle-on">Ground</button>
+  <button id="contextBtn" class="toggle-on">Context</button>
+  <button id="landscapeBtn" class="toggle-on">Landscape</button>
+</div>
+
+<div id="ui">
+  <div id="title">
+    <strong>GTA Industrial Warehouse — Interior</strong>
+    Pallet racking · bay storage · clear-span floor<br>
+    <em>Greater Toronto Area · Commercial Class A</em>
+  </div>
+  <div id="phase-display">
+    <span id="ph-empty">EMPTY</span>
+    <span id="ph-loading">LOADING</span>
+    <span id="ph-full-a">STORAGE MODE A</span>
+    <span id="ph-full-b">STORAGE MODE B</span>
+    <span id="ph-clearing">CLEARING</span>
+  </div>
+</div>
+
+<div id="callout">
+  <span id="callout-name">GTA INDUSTRIAL WAREHOUSE — INTERIOR</span>
+  <span id="callout-sub">GREATER TORONTO AREA · COMMERCIAL CLASS A</span>
+</div>
+
+<div id="hint">DRAG TO ORBIT · SCROLL TO ZOOM · ANIMATE TO START / STOP</div>
+<div id="progress-bar"><div id="progress-fill"></div></div>
+
+<div id="game-brand">
+  <small>Interactive warehouse logistics challenge</small>
+  <strong>Megha Mehta Real Estate</strong>
+  <span>Tap a pallet, then tap a matching bay. The crane handles the lift. Four escalating levels. Wrong bay taps cut time immediately.</span>
+</div>
+<div id="game-hud">
+  <div class="gcard"><span class="glabel">Level</span><span class="gvalue" id="g-level">1 / 4</span></div>
+  <div class="gcard"><span class="glabel">Timer</span><span class="gvalue warn" id="g-timer">0:00</span></div>
+  <div class="gcard"><span class="glabel">Score</span><span class="gvalue" id="g-score">0</span></div>
+  <div class="gcard"><span class="glabel">Progress</span><span class="gvalue" id="g-progress">0 / 0</span></div>
+  <div class="gcard"><span class="glabel">Crane speed</span><span class="gvalue good" id="g-speed">100% bridge · 100% hoist</span></div>
+</div>
+<div id="game-help"><strong>Controls:</strong> Tap or click any pallet to lock it to the crane. Then tap a matching color bay. Wrong bay taps cut time immediately.</div>
+<div id="game-status"><strong>Status:</strong> <span id="g-status">Game mode ready.</span></div>
+
+
+
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────────────────────
+const allMats=[];
+function mat(o){const m=new THREE.MeshStandardMaterial(o);allMats.push(m);return m;}
+function lerp(a,b,t){return a+(b-a)*t;}
+function eIO(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+function eOut(t){return 1-Math.pow(1-t,3);}
+function ss(e0,e1,x){const t=Math.max(0,Math.min(1,(x-e0)/(e1-e0)));return t*t*(3-2*t);}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDERER / SCENE / CAMERA
+// ─────────────────────────────────────────────────────────────────────────────
+let W=window.innerWidth,H=window.innerHeight;
+const canvas=document.getElementById('canvas');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W,H);
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.9;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xcfe6ff);
+scene.fog=new THREE.FogExp2(0xcfe6ff,0.0045);
+
+const camera=new THREE.PerspectiveCamera(55,W/H,0.1,300);
+let rotX=-0.12,rotY=0.0,dist=22,camAnim=null;
+
+function applyCamera(){
+  const cx=Math.cos(rotY)*Math.cos(rotX)*dist;
+  const cy=Math.sin(rotX)*dist+2.0;
+  const cz=Math.sin(rotY)*Math.cos(rotX)*dist;
+  camera.position.set(cx,cy,cz);
+  camera.lookAt(0,2,0);
+}
+applyCamera();
+
+function animCam(tx,ty,td,dur=800,cb){
+  const sx=rotX,sy=rotY,sd=dist,t0=performance.now();
+  camAnim=function(now){
+    const t=Math.min((now-t0)/dur,1),e=eIO(t);
+    rotX=sx+(tx-sx)*e;rotY=sy+(ty-sy)*e;dist=sd+(td-sd)*e;
+    applyCamera();
+    if(t>=1){camAnim=null;if(cb)cb();}
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LIGHTING — industrial high-bay feel
+// ─────────────────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xeaf2ff, .00016));
+
+// Key overhead — cool industrial
+const keyLight=new THREE.DirectionalLight(0xd8e8ff,0.12);
+keyLight.position.set(0,28,4);
+keyLight.castShadow=true;
+keyLight.shadow.mapSize.width=keyLight.shadow.mapSize.height=2048;
+keyLight.shadow.camera.left=keyLight.shadow.camera.bottom=-40;
+keyLight.shadow.camera.right=keyLight.shadow.camera.top=40;
+keyLight.shadow.camera.far=60;
+keyLight.shadow.bias=-0.001;
+scene.add(keyLight);
+
+const fillLight=new THREE.DirectionalLight(0x6080a0,0.8);
+fillLight.position.set(-10,6,8);
+scene.add(fillLight);
+
+const backLight=new THREE.DirectionalLight(0x9090b0,0.5);
+backLight.position.set(5,5,-20);
+scene.add(backLight);
+
+// High-bay strip lights along ceiling
+const stripPositions=[
+  [-9,8.8,-15],[-9,8.8,-5],[-9,8.8,5],[-9,8.8,15],
+  [0,8.8,-15],[0,8.8,-5],[0,8.8,5],[0,8.8,15],
+  [9,8.8,-15],[9,8.8,-5],[9,8.8,5],[9,8.8,15],
+];
+stripPositions.forEach(([x,y,z])=>{
+  const pl=new THREE.PointLight(0xd8eaff,2.8,14);
+  pl.position.set(x,y,z);
+  scene.add(pl);
+});
+
+// Warm accent
+const warmAccent=new THREE.PointLight(0xffcc88,1.2,20);
+warmAccent.position.set(4,3,-6);
+scene.add(warmAccent);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MATERIALS
+// ─────────────────────────────────────────────────────────────────────────────
+const M={
+  floor:   mat({color:0xb0b8b0,roughness:0.55,metalness:0.12}),
+  wall:    mat({color:0xd0cec8,roughness:0.88,metalness:0.02}),
+  ceiling: mat({color:0x484e58,roughness:0.78,metalness:0.08}),
+  steel:   mat({color:0x1c3a5a,roughness:0.38,metalness:0.85}),  // rack uprights — blue
+  steelOr: mat({color:0xc84c00,roughness:0.42,metalness:0.78}),  // rack beams — orange/red
+  steelGr: mat({color:0x2a5c2a,roughness:0.46,metalness:0.72}),  // variant racks — green
+  steelOrB:mat({color:0xd06000,roughness:0.42,metalness:0.75}),
+  pallet:  mat({color:0x9c7a4a,roughness:0.88,metalness:0.02}),
+  box:     mat({color:0xd4a870,roughness:0.78,metalness:0.02}),
+  boxB:    mat({color:0xc89860,roughness:0.80,metalness:0.02}),
+  boxC:    mat({color:0xe0b888,roughness:0.76,metalness:0.02}),
+  wrap:    mat({color:0x88aabb,roughness:0.22,metalness:0.08,transparent:true,opacity:0.55}),
+  wrapB:   mat({color:0xaabb88,roughness:0.22,metalness:0.08,transparent:true,opacity:0.50}),
+  stripe:  mat({color:0xf0e838,roughness:0.55,metalness:0.02}),
+  stripeW: mat({color:0xe8e4e0,roughness:0.60,metalness:0.02}),
+  column:  mat({color:0xcc3030,roughness:0.40,metalness:0.65}),  // red column guards
+  grating: mat({color:0x303840,roughness:0.56,metalness:0.72}),
+  fixture: mat({color:0xe0e8f0,roughness:0.28,metalness:0.22,emissive:0x203858,emissiveIntensity:0.45}),
+  fixtureGlow:mat({color:0xfff8e8,roughness:0.2,emissive:0xffeebb,emissiveIntensity:1.2}),
+  dock:    mat({color:0x1c2028,roughness:0.46,metalness:0.66}),
+  rubber:  mat({color:0x080806,roughness:0.99}),
+  yellow:  mat({color:0xf5c000,roughness:0.34,metalness:0.22,emissive:0x502c00,emissiveIntensity:0.5}),
+};
+
+const MX={
+  roof:         mat({color:0xb7b7b1,roughness:0.96,metalness:0.02}),
+  roofDark:     mat({color:0x8d8f92,roughness:0.98,metalness:0.02}),
+  roofStain:    mat({color:0x666b70,roughness:1,metalness:0,transparent:true,opacity:0.18}),
+  asphalt:      mat({color:0x686c73,roughness:1,metalness:0.01}),
+  asphaltDark:  mat({color:0x4b4f55,roughness:1,metalness:0.01}),
+  asphaltWear:  mat({color:0x2a2d31,roughness:1,metalness:0,transparent:true,opacity:0.16}),
+  concrete:     mat({color:0xa1a5aa,roughness:0.98,metalness:0.01}),
+  concreteDark: mat({color:0x8f9498,roughness:0.98,metalness:0.01}),
+  sidewalk:     mat({color:0xbab9b2,roughness:0.98,metalness:0.01}),
+  curb:         mat({color:0xd8d5ce,roughness:0.98,metalness:0.01}),
+  grass:        mat({color:0x4e6247,roughness:1,metalness:0}),
+  grassAlt:     mat({color:0x44583f,roughness:1,metalness:0}),
+  shrub:        mat({color:0x3d4e38,roughness:1,metalness:0}),
+  treeLeaf:     mat({color:0x4c6148,roughness:1,metalness:0}),
+  trunk:        mat({color:0x5b4536,roughness:1,metalness:0}),
+  brick:        mat({color:0xa75a43,roughness:0.94,metalness:0.02}),
+  brickDark:    mat({color:0x844939,roughness:0.96,metalness:0.02}),
+  warehouseWall:mat({color:0x989a97,roughness:0.95,metalness:0.02}),
+  warehouseTrim:mat({color:0x595f67,roughness:0.7,metalness:0.18}),
+  dockShelter:  mat({color:0x0d1013,roughness:0.99,metalness:0.01}),
+  dockSteel:    mat({color:0x404852,roughness:0.6,metalness:0.7}),
+  trailer:      mat({color:0xe3e3de,roughness:0.82,metalness:0.06}),
+  trailerAlt:   mat({color:0xd4d8dc,roughness:0.82,metalness:0.08}),
+  trailerStripe:mat({color:0xb8bcc0,roughness:0.8,metalness:0.08}),
+  chassis:      mat({color:0x22272c,roughness:0.88,metalness:0.52}),
+  tire:         mat({color:0x141414,roughness:1,metalness:0.01}),
+  rim:          mat({color:0x9ca4ab,roughness:0.42,metalness:0.88}),
+  glass:        mat({color:0x90a8bc,roughness:0.12,metalness:0.12,transparent:true,opacity:0.56}),
+  whiteMark:    mat({color:0xe7e5de,roughness:0.82,metalness:0.01}),
+  yellowMark:   mat({color:0xe1c95e,roughness:0.82,metalness:0.01}),
+  officeWall:   mat({color:0xb8ada0,roughness:1,metalness:0.01}),
+  officeRoof:   mat({color:0x6b4e43,roughness:0.96,metalness:0.02}),
+  officeTrim:   mat({color:0x534a44,roughness:0.84,metalness:0.1}),
+  houseWallA:   mat({color:0xcfbba7,roughness:1,metalness:0.01}),
+  houseWallB:   mat({color:0xd9cbbb,roughness:1,metalness:0.01}),
+  houseWallC:   mat({color:0xbd9f8c,roughness:1,metalness:0.01}),
+  houseWallD:   mat({color:0xe0d6ca,roughness:1,metalness:0.01}),
+  houseRoofA:   mat({color:0x7f5c49,roughness:0.98,metalness:0.02}),
+  houseRoofB:   mat({color:0x70686c,roughness:0.98,metalness:0.02}),
+  houseRoofC:   mat({color:0x986956,roughness:0.98,metalness:0.02}),
+  window:       mat({color:0x8aa1b4,roughness:0.18,metalness:0.12,transparent:true,opacity:0.45}),
+  yardStorage:  mat({color:0xc8c7c2,roughness:0.94,metalness:0.02}),
+  container:    mat({color:0x99a4ad,roughness:0.8,metalness:0.24}),
+  containerAlt: mat({color:0xb4b8bd,roughness:0.8,metalness:0.18}),
+  roadTreeBed:  mat({color:0x4d5a43,roughness:1,metalness:0})
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GEOMETRY HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function box(w,h,d,m,x=0,y=0,z=0,ry=0){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  mesh.position.set(x,y,z);
+  mesh.rotation.y=ry;
+  mesh.castShadow=true;mesh.receiveShadow=true;
+  return mesh;
+}
+
+function group(...children){
+  const g=new THREE.Group();
+  children.forEach(c=>g.add(c));
+  return g;
+}
+
+// Pallet rack upright frame (one vertical bay frame)
+function makeRackUpright(h,upMat,beamMat){
+  const g=new THREE.Group();
+  // Two vertical columns
+  [-0.5,0.5].forEach(x=>{
+    const col=new THREE.Mesh(new THREE.BoxGeometry(0.06,h,0.06),upMat);
+    col.position.set(x,h/2,0);col.castShadow=true;
+    g.add(col);
+  });
+  // Horizontal braces
+  const nBraces=Math.floor(h/0.9);
+  for(let i=0;i<=nBraces;i++){
+    const y=0.1+i*(h/nBraces);
+    const brace=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.04,0.04),upMat);
+    brace.position.set(0,y,0);g.add(brace);
+  }
+  // Diagonal X braces
+  for(let i=0;i<nBraces;i++){
+    const y0=0.1+i*(h/nBraces);
+    const y1=0.1+(i+1)*(h/nBraces);
+    const mid=(y0+y1)/2;
+    const dh=y1-y0;
+    const diag=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.03,0.03),upMat);
+    diag.position.set(0,mid,0);
+    diag.rotation.z=Math.atan2(dh,1.0);
+    g.add(diag);
+    const diag2=diag.clone();
+    diag2.rotation.z=-Math.atan2(dh,1.0);
+    g.add(diag2);
+  }
+  return g;
+}
+
+// Full rack bay: uprights + beams + wire deck
+function makeRackBay(w,h,levels,upMat,beamMat){
+  const g=new THREE.Group();
+  const depth=1.1;
+  // Two upright frames (front and back)
+  [0,-depth].forEach(z=>{
+    const uf=makeRackUpright(h,upMat,beamMat);
+    uf.position.z=z;
+    g.add(uf);
+  });
+  // Horizontal load beams at each level
+  for(let lv=0;lv<levels;lv++){
+    const beamY=0.8+lv*(h/levels);
+    [0,-depth].forEach(z=>{
+      const beam=new THREE.Mesh(new THREE.BoxGeometry(w,0.065,0.09),beamMat);
+      beam.position.set(0,beamY,z);beam.castShadow=true;
+      g.add(beam);
+    });
+    // Wire deck panels
+    const deck=new THREE.Mesh(new THREE.BoxGeometry(w-0.05,0.03,depth-0.08),M.grating);
+    deck.position.set(0,beamY+0.048,-depth/2);deck.receiveShadow=true;
+    g.add(deck);
+    // Wire crosshatch on deck
+    for(let wi=0;wi<4;wi++){
+      const wire=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.025,depth-0.08),M.grating);
+      wire.position.set(-w/2+0.2+wi*(w-0.1)/3,beamY+0.06,-depth/2);
+      g.add(wire);
+    }
+  }
+  return g;
+}
+
+// Pallet with stacked boxes
+function makePalletLoad(boxMat,wrapMat,variant=0){
+  const g=new THREE.Group();
+  // Pallet base
+  const pal=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.12,1.0),M.pallet);
+  pal.position.y=0.06;pal.castShadow=true;pal.receiveShadow=true;
+  g.add(pal);
+  // Pallet slats
+  for(let i=0;i<3;i++){
+    const sl=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.06,0.1),M.pallet);
+    sl.position.set(0,0.09,-0.4+i*0.4);
+    g.add(sl);
+  }
+  if(variant===0){
+    // Stacked boxes
+    const rows=2,cols=2,stacks=variant===0?3:2;
+    for(let s=0;s<stacks;s++){
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const bx=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.34,0.46),[M.box,M.boxB,M.box,M.boxC,M.box,M.boxB][Math.floor(Math.random()*3)]);
+          bx.position.set(-0.24+c*0.48,0.12+0.17+s*0.34,-0.24+r*0.48);
+          bx.castShadow=true;
+          g.add(bx);
+        }
+      }
+    }
+    // Stretch wrap
+    const wrap=new THREE.Mesh(new THREE.BoxGeometry(0.98,1.06,0.98),wrapMat);
+    wrap.position.y=0.12+0.53;g.add(wrap);
+  } else {
+    // Wrapped bales / totes
+    for(let r=0;r<2;r++){
+      for(let c=0;c<2;c++){
+        const tote=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.5,0.46),wrapMat);
+        tote.position.set(-0.24+c*0.48,0.12+0.25,-0.24+r*0.48);
+        tote.castShadow=true;g.add(tote);
+      }
+    }
+  }
+  return g;
+}
+
+// Pallet load on floor (no rack)
+function makeFloorPallet(boxMat,wrapMat){
+  return makePalletLoad(boxMat,wrapMat,Math.random()>0.5?0:1);
+}
+
+// High-bay light fixture
+function makeHighBayFixture(){
+  const g=new THREE.Group();
+  const housing=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.28,0.22,16),M.fixture);
+  housing.position.y=-0.11;g.add(housing);
+  const lamp=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.04,16),M.fixtureGlow);
+  lamp.position.y=-0.24;g.add(lamp);
+  const cord=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.4,6),M.grating);
+  cord.position.y=0.2;g.add(cord);
+  return g;
+}
+
+// Column guard
+function makeColumnGuard(h=0.9){
+  const g=new THREE.Group();
+  const guard=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.15,h,12),M.column);
+  guard.position.y=h/2;g.add(guard);
+  // Yellow stripe rings
+  [0.2,0.5,0.8].forEach(frac=>{
+    if(frac*h<h){
+      const stripe=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.025,6,20),M.yellow);
+      stripe.rotation.x=Math.PI/2;stripe.position.y=frac*h;g.add(stripe);
+    }
+  });
+  return g;
+}
+
+// Dock door (rear wall)
+function makeDockDoor(w,h){
+  const g=new THREE.Group();
+  const panels=6;const ph=h/panels;
+  for(let i=0;i<panels;i++){
+    const p=new THREE.Mesh(new THREE.BoxGeometry(w,ph-0.04,0.12),M.dock);
+    p.position.y=ph*(i+0.5);g.add(p);
+    const r=new THREE.Mesh(new THREE.BoxGeometry(w,0.04,0.14),M.grating);
+    r.position.y=ph*(i+1);g.add(r);
+  }
+  return g;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADDITIVE EXTERIOR HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function wheel(r=0.28,t=0.16){
+  const g=new THREE.Group();
+  const tire=new THREE.Mesh(new THREE.CylinderGeometry(r,r,t,18),MX.tire);
+  tire.rotation.z=Math.PI/2;
+  tire.castShadow=true;tire.receiveShadow=true;
+  const rim=new THREE.Mesh(new THREE.CylinderGeometry(r*0.58,r*0.58,t+0.02,18),MX.rim);
+  rim.rotation.z=Math.PI/2;
+  g.add(tire,rim);
+  return g;
+}
+
+function makeDockShelter(w=2.2,h=3.0){
+  const g=new THREE.Group();
+  const hood=box(w, h*0.82, 0.72, MX.dockShelter, 0, h*0.43, -0.28);
+  const top=box(w+0.32, 0.18, 1.0, MX.dockSteel, 0, h+0.05, -0.14);
+  const bumL=box(0.18, 1.05, 0.34, M.rubber, -w/2+0.08, 0.55, 0.08);
+  const bumR=box(0.18, 1.05, 0.34, M.rubber,  w/2-0.08, 0.55, 0.08);
+  const plate=box(w*0.95,0.05,0.55,MX.dockSteel,0,0.03,-0.36);
+  const lamp=box(0.16,0.16,0.18,MX.dockSteel,w/2+0.14,h*0.7,-0.1);
+  const lampGlow=box(0.08,0.08,0.08,M.fixtureGlow,w/2+0.16,h*0.66,-0.18);
+  g.add(hood,top,bumL,bumR,plate,lamp,lampGlow);
+  return g;
+}
+
+function makeRoofVent(r=0.28,h=0.35){
+  const g=new THREE.Group();
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(r*1.15,r*1.15,0.08,18),MX.dockSteel);
+  base.castShadow=true;base.receiveShadow=true;base.position.y=0.04;
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(r*0.68,r*0.68,h,18),MX.warehouseTrim);
+  stem.castShadow=true;stem.receiveShadow=true;stem.position.y=h/2+0.08;
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.08,0.08,18),MX.roofDark);
+  cap.castShadow=true;cap.receiveShadow=true;cap.position.y=h+0.12;
+  g.add(base,stem,cap);
+  return g;
+}
+
+function makeTrailer(length=7.6,width=2.45,height=2.9,alt=false){
+  const g=new THREE.Group();
+  const body=box(length,height,width,alt?MX.trailerAlt:MX.trailer,0,2.18,0);
+  const stripe=box(length*0.88,0.08,width+0.02,MX.trailerStripe,0,1.12,0);
+  const chassis=box(length*0.78,0.16,0.40,MX.chassis,0,0.96,0);
+  const nose=box(0.65,1.7,width*0.92,alt?MX.trailerAlt:MX.trailer,-length/2+0.3,1.52,0);
+  const legL=box(0.08,0.72,0.08,MX.chassis,-length/2+0.55,0.36,-0.45);
+  const legR=box(0.08,0.72,0.08,MX.chassis,-length/2+0.55,0.36,0.45);
+  g.add(body,stripe,chassis,nose,legL,legR);
+
+  [-length*0.18, length*0.18, length*0.33].forEach(ax=>{
+    [-width/2+0.14, width/2-0.14].forEach(z=>{
+      const wh=wheel(0.27,0.18);
+      wh.position.set(ax,0.28,z);
+      g.add(wh);
+    });
+  });
+
+  return g;
+}
+
+function makeTractor(color=0x58a7c8){
+  const cabMat=mat({color,roughness:0.62,metalness:0.2});
+  const g=new THREE.Group();
+  const cab=box(1.85,1.72,2.15,cabMat,0.05,1.25,0);
+  const hood=box(1.15,0.88,1.95,cabMat,1.38,0.86,0);
+  const chassis=box(2.95,0.18,1.15,MX.chassis,0.52,0.74,0);
+  const wind=box(0.72,0.62,1.82,MX.glass,-0.56,1.45,0);
+  const sideL=box(0.08,0.62,1.4,MX.glass,-0.1,1.35,-1.04);
+  const sideR=box(0.08,0.62,1.4,MX.glass,-0.1,1.35,1.04);
+  const bumper=box(0.18,0.28,1.62,MX.dockSteel,1.98,0.58,0);
+  g.add(cab,hood,chassis,wind,sideL,sideR,bumper);
+
+  [-0.15,1.35].forEach(ax=>{
+    [-0.82,0.82].forEach(z=>{
+      const wh=wheel(ax<0?0.34:0.30,0.22);
+      wh.position.set(ax,0.34,z);
+      g.add(wh);
+    });
+  });
+
+  const exhaust=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,1.15,8),MX.dockSteel);
+  exhaust.position.set(-0.7,1.45,-0.9);
+  exhaust.castShadow=true;exhaust.receiveShadow=true;
+  g.add(exhaust);
+  return g;
+}
+
+function makeSemiCombo(color=0x58a7c8,altTrailer=false){
+  const g=new THREE.Group();
+  const trailer=makeTrailer(7.6,2.45,2.9,altTrailer);
+  const tractor=makeTractor(color);
+  tractor.position.x=-5.7;
+  g.add(trailer,tractor);
+  return g;
+}
+
+function makeCar(color=0x2c3138){
+  const carMat=mat({color,roughness:0.72,metalness:0.2});
+  const g=new THREE.Group();
+  const body=box(2.05,0.5,1.02,carMat,0,0.42,0);
+  const roof=box(0.98,0.42,0.92,carMat,-0.15,0.82,0);
+  const glassF=box(0.48,0.24,0.84,MX.glass,0.42,0.83,0);
+  const glassR=box(0.34,0.22,0.84,MX.glass,-0.58,0.83,0);
+  g.add(body,roof,glassF,glassR);
+  [-0.62,0.62].forEach(ax=>{
+    [-0.48,0.48].forEach(z=>{
+      const wh=wheel(0.22,0.15);
+      wh.position.set(ax,0.22,z);
+      g.add(wh);
+    });
+  });
+  return g;
+}
+
+function makeTree(scale=1){
+  const g=new THREE.Group();
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.18*scale,0.26*scale,2.1*scale,8),MX.trunk);
+  trunk.position.y=1.05*scale;
+  trunk.castShadow=true;trunk.receiveShadow=true;
+  const c1=new THREE.Mesh(new THREE.SphereGeometry(0.9*scale,10,10),MX.treeLeaf);
+  const c2=new THREE.Mesh(new THREE.SphereGeometry(0.78*scale,10,10),MX.treeLeaf);
+  const c3=new THREE.Mesh(new THREE.SphereGeometry(0.72*scale,10,10),MX.treeLeaf);
+  c1.position.set(0,2.25*scale,0);
+  c2.position.set(0.52*scale,2.0*scale,0.2*scale);
+  c3.position.set(-0.46*scale,1.95*scale,-0.22*scale);
+  [c1,c2,c3].forEach(c=>{c.castShadow=true;c.receiveShadow=true;});
+  g.add(trunk,c1,c2,c3);
+  g.userData.swayPhase=Math.random()*Math.PI*2;
+  g.userData.swayAmp=0.015+Math.random()*0.03;
+  return g;
+}
+
+function makeShrub(scale=1){
+  const g=new THREE.Group();
+  const a=new THREE.Mesh(new THREE.SphereGeometry(0.45*scale,8,8),MX.shrub);
+  const b=new THREE.Mesh(new THREE.SphereGeometry(0.35*scale,8,8),MX.shrub);
+  a.position.set(0,0.42*scale,0);
+  b.position.set(0.28*scale,0.34*scale,0.12*scale);
+  [a,b].forEach(m=>{m.castShadow=true;m.receiveShadow=true;});
+  g.add(a,b);
+  return g;
+}
+
+function makeWarehouseMass(w,d,h,dockCount=4){
+  const g=new THREE.Group();
+  const vol=box(w,h,d,MX.warehouseWall,0,h/2,0);
+  const roofCap=box(w+0.4,0.16,d+0.4,MX.roofDark,0,h+0.09,0);
+  const brickBand=box(w+0.08,2.25,0.18,MX.brick,0,1.12,-d/2-0.09);
+  g.add(vol,roofCap,brickBand);
+
+  for(let i=1;i<5;i++){
+    const seam=box(0.12,0.04,d-2,MX.roofStain,-w/2+i*(w/5),h+0.12,0);
+    g.add(seam);
+  }
+  [
+    [-w*0.22,h+0.12,-d*0.16],
+    [0,h+0.12,0],
+    [w*0.24,h+0.12,d*0.2]
+  ].forEach(([x,y,z])=>{
+    const stain=box(4.4,0.03,10.5,MX.roofStain,x,y,z);
+    g.add(stain);
+  });
+
+  const xs=[];
+  if(dockCount===1) xs.push(0);
+  else{
+    for(let i=0;i<dockCount;i++) xs.push(-w/2+2.8+i*((w-5.6)/(dockCount-1)));
+  }
+  xs.forEach(x=>{
+    const door=box(2.12,3.24,0.14,M.dock,x,1.62,-d/2-0.02);
+    const dock=makeDockShelter(2.18,3.0);
+    dock.position.set(x,0,-d/2);
+    g.add(door,dock);
+  });
+
+  return g;
+}
+
+function makeOfficeBuilding(w=7.5,d=5.8,h=3.2){
+  const g=new THREE.Group();
+  const body=box(w,h,d,MX.officeWall,0,h/2,0);
+  const roof=box(w+0.6,0.65,d+0.8,MX.officeRoof,0,h+0.35,0);
+  roof.rotation.z=0.05;
+  const door=box(0.92,1.82,0.12,MX.officeTrim,-w/2+1.15,0.91,-d/2-0.07);
+  const w1=box(1.0,0.75,0.08,MX.window,-1.2,1.8,-d/2-0.06);
+  const w2=box(1.0,0.75,0.08,MX.window,1.1,1.8,-d/2-0.06);
+  g.add(body,roof,door,w1,w2);
+  return g;
+}
+
+function makeHouse(w=6.6,d=8.2,h=4.2,wallMat=MX.houseWallA,roofMat=MX.houseRoofA){
+  const g=new THREE.Group();
+  const body=box(w,h,d,wallMat,0,h/2,0);
+  const roof=box(w+0.5,0.75,d+0.6,roofMat,0,h+0.36,0);
+  roof.rotation.z=(Math.random()-.5)*0.03;
+  const door=box(0.85,1.7,0.1,MX.officeTrim,-w/2+1.05,0.85,-d/2-0.08);
+  const win1=box(1.1,0.8,0.08,MX.window,-0.7,2.05,-d/2-0.07);
+  const win2=box(1.1,0.8,0.08,MX.window,1.35,2.05,-d/2-0.07);
+  g.add(body,roof,door,win1,win2);
+  return g;
+}
+
+function addParkingCluster(target,x,z,rows,cols,dx=3.0,dz=5.0,rot=0){
+  const colors=[0x2a2d33,0xb4b7bc,0x78808a,0x40474f,0x6a737b,0xd8dadd];
+  const g=new THREE.Group();
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const car=makeCar(colors[(r*cols+c)%colors.length]);
+      car.scale.setScalar(0.82+Math.random()*0.08);
+      car.position.set(c*dx,0,r*dz);
+      car.rotation.y=(Math.random()-.5)*0.08;
+      g.add(car);
+    }
+  }
+  g.position.set(x,0,z);
+  g.rotation.y=rot;
+  target.add(g);
+  return g;
+}
+
+function addRoadDashes(target,x,zStart,zEnd,spacing=8,len=3,width=0.22){
+  const count=Math.floor((zEnd-zStart)/spacing);
+  for(let i=0;i<=count;i++){
+    const z=zStart+i*spacing;
+    target.add(box(width,0.02,len,MX.whiteMark,x,-0.015,z));
+  }
+}
+
+function addRoadCrossMarks(target,x,zStart,zEnd,spacing=7.5,len=1.8,width=0.18){
+  const count=Math.floor((zEnd-zStart)/spacing);
+  for(let i=0;i<=count;i++){
+    const z=zStart+i*spacing;
+    target.add(box(width,0.02,len,MX.yellowMark,x,-0.014,z));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WAREHOUSE SHELL (static — always visible)
+// ─────────────────────────────────────────────────────────────────────────────
+const SHELL_W=22,SHELL_D=50,SHELL_H=10;
+const shellGroup=new THREE.Group();
+
+// Floor
+const floorMesh=new THREE.Mesh(new THREE.PlaneGeometry(SHELL_W+0.2,SHELL_D+0.2),M.floor);
+floorMesh.rotation.x=-Math.PI/2;floorMesh.position.y=0;
+floorMesh.receiveShadow=true;shellGroup.add(floorMesh);
+
+// Floor expansion joints
+for(let i=1;i<5;i++){
+  const jt=new THREE.Mesh(new THREE.BoxGeometry(SHELL_W,0.01,0.06),M.grating);
+  jt.position.set(0,0.01,-SHELL_D/2+i*(SHELL_D/5));jt.rotation.x=0;shellGroup.add(jt);
+}
+for(let i=1;i<3;i++){
+  const jt=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.01,SHELL_D),M.grating);
+  jt.position.set(-SHELL_W/2+i*(SHELL_W/3),0.01,0);shellGroup.add(jt);
+}
+
+// Floor yellow safety lanes
+[-5.0,5.0].forEach(x=>{
+  for(let j=0;j<12;j++){
+    const stripe=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.01,1.8),M.stripe);
+    stripe.position.set(x,0.012,-SHELL_D/2+2+j*4);shellGroup.add(stripe);
+  }
+});
+
+// Drive aisle centerline
+for(let j=0;j<14;j++){
+  const dash=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.01,1.2),M.stripeW);
+  dash.position.set(0,0.012,-SHELL_D/2+2+j*3.5);shellGroup.add(dash);
+}
+
+// Left wall
+const lwg=new THREE.Group();
+lwg.add(box(0.22,SHELL_H,SHELL_D,M.wall,0,SHELL_H/2,0));
+lwg.position.x=-SHELL_W/2;shellGroup.add(lwg);
+
+// Right wall
+const rwg=new THREE.Group();
+rwg.add(box(0.22,SHELL_H,SHELL_D,M.wall,0,SHELL_H/2,0));
+rwg.position.x=SHELL_W/2;shellGroup.add(rwg);
+
+// Rear wall with dock doors
+const rearWall=new THREE.Group();
+const rearPanel=box(SHELL_W,SHELL_H,0.22,M.wall,0,SHELL_H/2,0);
+rearWall.add(rearPanel);
+// Dock door openings
+[-7,-3.5,0,3.5,7].forEach(x=>{
+  const cut=box(2.5,3.8,0.30,M.dock,x,1.9,0);
+  rearWall.add(cut);
+  const door=makeDockDoor(2.4,3.6);
+  door.position.set(x,0,-0.1);
+  rearWall.add(door);
+});
+rearWall.position.z=-SHELL_D/2;shellGroup.add(rearWall);
+
+// Front wall (partial — office section)
+const frontWall=box(SHELL_W,SHELL_H,0.22,M.wall,0,SHELL_H/2,SHELL_D/2);
+shellGroup.add(frontWall);
+// Large entry door opening
+const entryOpen=box(5.5,4.2,0.28,mat({color:0x1a1e26,roughness:0.4,metalness:0.5}),0,2.1,SHELL_D/2);
+shellGroup.add(entryOpen);
+
+// Ceiling
+const ceilMesh=box(SHELL_W,0.28,SHELL_D,M.ceiling,0,SHELL_H,0);
+ceilMesh.receiveShadow=true;shellGroup.add(ceilMesh);
+
+// Ceiling structure — steel beams across width
+for(let i=0;i<10;i++){
+  const z=-SHELL_D/2+3+i*(SHELL_D-6)/9;
+  const beam=box(SHELL_W,0.38,0.18,M.grating,0,SHELL_H-0.19,z);
+  shellGroup.add(beam);
+  // Purlin runs along length
+  if(i<9){
+    const pur=box(0.12,0.28,SHELL_D/9,M.grating,0,SHELL_H-0.14,z+(SHELL_D-6)/18);
+    shellGroup.add(pur);
+  }
+}
+
+// Structural columns (red guards at base)
+[-SHELL_W/2+0.3,0,SHELL_W/2-0.3].forEach(x=>{
+  [-15,-5,5,15].forEach(z=>{
+    const col=box(0.30,SHELL_H,0.30,M.grating,x,SHELL_H/2,z);
+    shellGroup.add(col);
+    const guard=makeColumnGuard(1.0);
+    guard.position.set(x,0,z);shellGroup.add(guard);
+  });
+});
+
+// High-bay light fixtures suspended from ceiling
+stripPositions.forEach(([x,y,z])=>{
+  const fix=makeHighBayFixture();
+  fix.position.set(x,y,z);shellGroup.add(fix);
+});
+
+scene.add(shellGroup);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADDITIVE EXTERIOR / SITE CONTEXT
+// ─────────────────────────────────────────────────────────────────────────────
+const siteGroups={
+  shell:new THREE.Group(),
+  logistics:new THREE.Group(),
+  ground:new THREE.Group(),
+  context:new THREE.Group(),
+  landscape:new THREE.Group()
+};
+const siteMaster=new THREE.Group();
+Object.values(siteGroups).forEach(g=>siteMaster.add(g));
+scene.add(siteMaster);
+
+const swayingTrees=[];
+const movers=[];
+
+// Ground / circulation
+const siteBase=box(170,0.08,170,MX.asphaltDark,0,-0.08,0);
+siteGroups.ground.add(siteBase);
+
+const dockCourt=box(90,0.05,30,MX.concrete,6,-0.03,-40);
+siteGroups.ground.add(dockCourt);
+
+const truckLane=box(105,0.04,9,MX.asphalt,8,-0.025,-56);
+siteGroups.ground.add(truckLane);
+
+const hornerAve=box(14,0.05,150,MX.asphalt,-58,-0.03,0);
+siteGroups.ground.add(hornerAve);
+const hornerMedianLine=box(0.18,0.02,150,MX.whiteMark,-58,-0.014,0);
+siteGroups.ground.add(hornerMedianLine);
+addRoadDashes(siteGroups.ground,-56.25,-68,68,9,3.2,0.16);
+addRoadDashes(siteGroups.ground,-59.75,-68,68,9,3.2,0.16);
+addRoadCrossMarks(siteGroups.ground,-58,-68,68,12,1.8,0.14);
+
+const sidewalkEast=box(2.8,0.06,150,MX.sidewalk,-48.9,-0.01,0);
+const sidewalkWest=box(2.8,0.06,150,MX.sidewalk,-67.1,-0.01,0);
+const curbEast=box(0.28,0.14,150,MX.curb,-50.3,0.04,0);
+const curbWest=box(0.28,0.14,150,MX.curb,-65.7,0.04,0);
+siteGroups.ground.add(sidewalkEast,sidewalkWest,curbEast,curbWest);
+
+const roadShoulderGrass=box(8,0.06,150,MX.grassAlt,-74,-0.05,0);
+siteGroups.ground.add(roadShoulderGrass);
+
+const rearServiceStrip=box(120,0.05,8,MX.concreteDark,0,-0.025,31);
+siteGroups.ground.add(rearServiceStrip);
+
+const rearStreet=box(125,0.05,8,MX.asphalt,-2,-0.025,73);
+const rearStreetSidewalk1=box(125,0.05,2.4,MX.sidewalk,-2,-0.005,67.3);
+const rearStreetSidewalk2=box(125,0.05,2.4,MX.sidewalk,-2,-0.005,78.7);
+siteGroups.ground.add(rearStreet,rearStreetSidewalk1,rearStreetSidewalk2);
+
+const drivewayToRoad=box(14,0.04,18,MX.asphalt,-42,-0.02,-39);
+siteGroups.ground.add(drivewayToRoad);
+
+[
+  [4,-39,18,8],[18,-35,16,7],[-12,-44,12,6],[30,-41,13,5],
+  [0,-52,20,4],[-33,-59,12,4],[-83,12,18,7]
+].forEach(([x,z,w,d])=>{
+  siteGroups.ground.add(box(w,0.03,d,MX.asphaltWear,x,-0.013,z));
+});
+
+// Exterior shell for center warehouse
+const centerRoofCap=box(SHELL_W+0.5,0.18,SHELL_D+0.5,MX.roof,0,SHELL_H+0.11,0);
+siteGroups.shell.add(centerRoofCap);
+
+for(let i=1;i<4;i++){
+  const seam=box(0.12,0.03,SHELL_D-2,MX.roofStain,-SHELL_W/2+i*(SHELL_W/4),SHELL_H+0.125,0);
+  siteGroups.shell.add(seam);
+}
+[
+  [-2.5,SHELL_H+0.12,-4,5.0,18.0],
+  [3.4,SHELL_H+0.12,8,4.2,20.5],
+  [0,SHELL_H+0.12,0,7.0,10.0]
+].forEach(([x,y,z,w,d])=>{
+  siteGroups.shell.add(box(w,0.03,d,MX.roofStain,x,y,z));
+});
+
+[
+  [-4.8,SHELL_H+0.14,-9.5],
+  [-1.2,SHELL_H+0.14,4.5],
+  [4.2,SHELL_H+0.14,10.5]
+].forEach(([x,y,z])=>{
+  const vent=makeRoofVent(0.24+Math.random()*0.08,0.28+Math.random()*0.12);
+  vent.position.set(x,y,z);
+  siteGroups.shell.add(vent);
+});
+
+[-7,-3.5,0,3.5,7].forEach(x=>{
+  const shelter=makeDockShelter(2.2,3.0);
+  shelter.position.set(x,0,-SHELL_D/2);
+  siteGroups.shell.add(shelter);
+  const bumperPlate=box(2.25,0.05,0.8,MX.dockSteel,x,0.02,-25.64);
+  siteGroups.shell.add(bumperPlate);
+});
+
+const dockServiceDoor=box(1.05,2.2,0.12,MX.officeTrim,9.6,1.1,-25.08);
+siteGroups.shell.add(dockServiceDoor);
+
+// Connected warehouse units left / right
+const leftConnected=makeWarehouseMass(18,50,9.9,4);
+leftConnected.position.set(-20,0,0);
+siteGroups.context.add(leftConnected);
+
+const rightConnected=makeWarehouseMass(21.5,50,9.9,5);
+rightConnected.position.set(21.75,0,0);
+siteGroups.context.add(rightConnected);
+
+const rightAnnex=makeWarehouseMass(9,50,9.4,2);
+rightAnnex.position.set(37,0,0);
+siteGroups.context.add(rightAnnex);
+
+// Foreground warehouse
+const foregroundWarehouse=makeWarehouseMass(72,34,7.8,0);
+foregroundWarehouse.position.set(12,0,-78);
+siteGroups.context.add(foregroundWarehouse);
+const fgRoofStainA=box(18,0.03,12,MX.roofStain,0,7.95,-78);
+const fgRoofStainB=box(12,0.03,8,MX.roofStain,20,7.95,-85);
+siteGroups.context.add(fgRoofStainA,fgRoofStainB);
+
+// Industrial lots across Horner Avenue
+const westLotA=makeWarehouseMass(16,22,5.8,0);
+westLotA.position.set(-83,0,-24);
+siteGroups.context.add(westLotA);
+
+const westLotB=makeWarehouseMass(22,16,5.0,0);
+westLotB.position.set(-86,0,18);
+siteGroups.context.add(westLotB);
+
+const westLotC=makeWarehouseMass(18,20,4.8,0);
+westLotC.position.set(-79,0,52);
+siteGroups.context.add(westLotC);
+
+const openYardPad=box(24,0.05,18,MX.concrete,-82,-0.02,8);
+siteGroups.context.add(openYardPad);
+
+for(let i=0;i<5;i++){
+  const stack=box(2.6,0.95,6.2,i%2?MX.container:MX.containerAlt,-90+i*4.2,0.48,8+(i%2?2:-2));
+  siteGroups.context.add(stack);
+}
+
+// Small office / utility building
+const siteOffice=makeOfficeBuilding(7.6,5.8,3.0);
+siteOffice.position.set(-30,0,-63);
+siteGroups.context.add(siteOffice);
+
+const officePad=box(15,0.05,12,MX.concrete,-30,-0.02,-63);
+const officeWalk=box(5.5,0.05,2.3,MX.sidewalk,-30,-0.01,-57);
+siteGroups.context.add(officePad,officeWalk);
+
+// Parking clusters
+addParkingCluster(siteGroups.context,-37,-59,2,6,2.8,4.4,0.02);
+addParkingCluster(siteGroups.context,-85,-40,1,7,2.7,4.5,0.05);
+addParkingCluster(siteGroups.context,-76,35,2,5,2.7,4.2,-0.02);
+
+// Open storage yard and parked trailers to far right
+const eastStoragePad=box(24,0.05,20,MX.concrete,58,-0.02,6);
+siteGroups.context.add(eastStoragePad);
+for(let i=0;i<4;i++){
+  const storage=box(3.2,1.0,7.6,i%2?MX.yardStorage:MX.containerAlt,50+i*4.3,0.52,4+(i%2?2:-2));
+  siteGroups.context.add(storage);
+}
+for(let i=0;i<3;i++){
+  const parkTrailer=makeTrailer(6.8,2.45,2.8,i%2===0);
+  parkTrailer.rotation.y=Math.PI/2;
+  parkTrailer.position.set(63,0,-22+i*9);
+  siteGroups.context.add(parkTrailer);
+}
+
+// Logistics props: docked trailers, tractors, vehicles
+const dockXsCenter=[-7,-3.5,0,3.5,7];
+dockXsCenter.forEach((x,i)=>{
+  const tr=makeTrailer(7.8,2.45,2.95,i%2===0);
+  tr.rotation.y=Math.PI/2;
+  tr.position.set(x,0,-33.5);
+  siteGroups.logistics.add(tr);
+});
+
+[-24.5,-20.4,-16.3].forEach((x,i)=>{
+  const tr=makeTrailer(7.4,2.45,2.9,i%2===1);
+  tr.rotation.y=Math.PI/2;
+  tr.position.set(x,0,-33.3-(i%2)*0.4);
+  siteGroups.logistics.add(tr);
+});
+
+[15.6,19.8,24.1,28.5,32.4].forEach((x,i)=>{
+  const tr=makeTrailer(7.4,2.45,2.9,i%2===0);
+  tr.rotation.y=Math.PI/2;
+  tr.position.set(x,0,-33.7+((i%2)*0.3));
+  siteGroups.logistics.add(tr);
+});
+
+const comboA=makeSemiCombo(0x5da9ca,false);
+comboA.rotation.y=Math.PI/2;
+comboA.position.set(12,0,-51);
+siteGroups.logistics.add(comboA);
+
+const comboB=makeSemiCombo(0x57b08a,true);
+comboB.rotation.y=Math.PI/2;
+comboB.position.set(30,0,-50);
+siteGroups.logistics.add(comboB);
+
+const detachedA=makeTrailer(7.2,2.45,2.85,false);
+detachedA.rotation.y=Math.PI/2;
+detachedA.position.set(-4,0,-50);
+siteGroups.logistics.add(detachedA);
+
+const detachedB=makeTrailer(6.8,2.45,2.8,true);
+detachedB.rotation.y=Math.PI/2;
+detachedB.position.set(-20,0,-49);
+siteGroups.logistics.add(detachedB);
+
+[
+  [-10,-46,0.08,0x2a3138],
+  [-6,-45,-0.03,0xb5b9bf],
+  [-1,-46,0.04,0x707983],
+  [6,-46,-0.02,0x3e454d],
+  [17,-45,0.06,0xd6d9dc]
+].forEach(([x,z,r,c])=>{
+  const car=makeCar(c);
+  car.position.set(x,0,z);
+  car.rotation.y=Math.PI + r;
+  car.scale.setScalar(0.9);
+  siteGroups.logistics.add(car);
+});
+
+// Houses and neighborhood context
+const houseWalls=[MX.houseWallA,MX.houseWallB,MX.houseWallC,MX.houseWallD];
+const houseRoofs=[MX.houseRoofA,MX.houseRoofB,MX.houseRoofC];
+for(let i=0;i<10;i++){
+  const hx=-37+i*8.2;
+  const house=makeHouse(6.6+Math.random()*0.6,8.2,4.0+Math.random()*0.4,houseWalls[i%houseWalls.length],houseRoofs[i%houseRoofs.length]);
+  house.position.set(hx,0,57+(i%2?0.8:-0.6));
+  siteGroups.context.add(house);
+
+  const yard=box(7.6,0.04,11.5,MX.grassAlt,hx,-0.045,47.3);
+  const drive=box(2.1,0.04,7.5,MX.concreteDark,hx-2.2,-0.02,67.4);
+  siteGroups.context.add(yard,drive);
+}
+
+// Landscape: tree buffer, roadside trees, shrubs
+for(let i=0;i<16;i++){
+  const tree=makeTree(0.88+Math.random()*0.4);
+  tree.position.set(-46+i*6.2,0,34+(Math.random()*4-2));
+  siteGroups.landscape.add(tree);
+  swayingTrees.push(tree);
+}
+for(let i=0;i<12;i++){
+  const shrub=makeShrub(0.8+Math.random()*0.45);
+  shrub.position.set(-44+i*7.4,0,31+(Math.random()*2-1));
+  siteGroups.landscape.add(shrub);
+}
+for(let i=0;i<11;i++){
+  const tree=makeTree(0.92+Math.random()*0.35);
+  tree.position.set(-72+Math.random()*8,0,-58+i*12);
+  siteGroups.landscape.add(tree);
+  swayingTrees.push(tree);
+}
+for(let i=0;i<8;i++){
+  const tree=makeTree(0.9+Math.random()*0.45);
+  tree.position.set(-38+i*11.5,0,81+(Math.random()*3-1.5));
+  siteGroups.landscape.add(tree);
+  swayingTrees.push(tree);
+}
+for(let i=0;i<5;i++){
+  const shrub=makeShrub(0.9+Math.random()*0.35);
+  shrub.position.set(-31+(Math.random()*8-4),0,-63+(Math.random()*10-5));
+  siteGroups.landscape.add(shrub);
+}
+
+// Small grass patches
+siteGroups.landscape.add(
+  box(118,0.05,10,MX.grass,0,-0.05,38),
+  box(12,0.05,150,MX.grassAlt,-44,-0.05,0),
+  box(25,0.05,14,MX.grassAlt,-30,-0.05,-63)
+);
+
+// Moving ambient vehicles
+const roadCar1=makeCar(0xd9dcdf);
+roadCar1.position.set(-60.8,0,-66);
+roadCar1.rotation.y=-Math.PI/2;
+siteGroups.logistics.add(roadCar1);
+movers.push({mesh:roadCar1,type:'road',baseX:-60.8,baseZ:-66,speed:0.012,range:138});
+
+const roadCar2=makeCar(0x4c545c);
+roadCar2.position.set(-55.2,0,58);
+roadCar2.rotation.y=Math.PI/2;
+siteGroups.logistics.add(roadCar2);
+movers.push({mesh:roadCar2,type:'roadBack',baseX:-55.2,baseZ:58,speed:0.010,range:138});
+
+const yardTractor=makeTractor(0x62b7c9);
+yardTractor.position.set(22,0,-56);
+yardTractor.rotation.y=Math.PI;
+siteGroups.logistics.add(yardTractor);
+movers.push({mesh:yardTractor,type:'yard',baseX:22,baseZ:-56,speed:0.006,range:18});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTERIOR CONTENT GROUPS (animated)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Mode A: Blue/orange racking, boxes ──────────────────────────────────────
+const modeAGroup=new THREE.Group();
+
+// Rack rows — left side (x ~ -8)
+const RACK_LEVELS=4;
+const RACK_H=8.2;
+const RACK_BAY_W=2.2;
+const RACK_BAYS_PER_ROW=8;
+const ROW_DEPTH=1.1;
+
+function buildRackRow(x,z0,bays,levels,h,upMat,beamMat,palletVarFn){
+  const rowG=new THREE.Group();
+  for(let b=0;b<bays;b++){
+    const bayG=makeRackBay(RACK_BAY_W,h,levels,upMat,beamMat);
+    bayG.position.x=b*RACK_BAY_W;
+    rowG.add(bayG);
+    // Load pallets on each level
+    for(let lv=0;lv<levels;lv++){
+      const beamY=0.8+lv*(h/levels);
+      if(palletVarFn){
+        const pld=palletVarFn(b,lv);
+        if(pld){
+          pld.scale.setScalar(0.96);
+          pld.position.set(b*RACK_BAY_W,beamY+0.07,-ROW_DEPTH/2);
+          rowG.add(pld);
+        }
+      }
+    }
+  }
+  const totalW=bays*RACK_BAY_W;
+  rowG.position.set(x-totalW/2,0,z0);
+  return rowG;
+}
+
+// Mode A — Left rack rows
+const rackRowA1=buildRackRow(-8.5,-18,RACK_BAYS_PER_ROW,RACK_LEVELS,RACK_H,M.steel,M.steelOr,(b,lv)=>{
+  if(Math.random()<0.85) return makePalletLoad(M.box,M.wrap,0);
+  return null;
+});
+modeAGroup.add(rackRowA1);
+
+// Mode A — Right rack rows
+const rackRowA2=buildRackRow(8.5,-18,RACK_BAYS_PER_ROW,RACK_LEVELS,RACK_H,M.steel,M.steelOr,(b,lv)=>{
+  if(Math.random()<0.80) return makePalletLoad(M.boxB,M.wrap,1);
+  return null;
+});
+// Flip right row to face inward
+rackRowA2.rotation.y=Math.PI;
+rackRowA2.position.x=RACK_BAY_W*RACK_BAYS_PER_ROW/2-4;
+modeAGroup.add(rackRowA2);
+
+// Second rack row (behind first, left)
+const rackRowA3=buildRackRow(-8.5,-18,RACK_BAYS_PER_ROW,RACK_LEVELS,RACK_H,M.steel,M.steelOr,(b,lv)=>{
+  if(Math.random()<0.75) return makePalletLoad(M.boxC,M.wrap,0);
+  return null;
+});
+rackRowA3.position.z=ROW_DEPTH+0.15;
+modeAGroup.add(rackRowA3);
+
+const rackRowA4=buildRackRow(8.5,-18,RACK_BAYS_PER_ROW,RACK_LEVELS,RACK_H,M.steel,M.steelOr,(b,lv)=>{
+  if(Math.random()<0.82) return makePalletLoad(M.box,M.wrapB,0);
+  return null;
+});
+rackRowA4.rotation.y=Math.PI;
+rackRowA4.position.x=RACK_BAY_W*RACK_BAYS_PER_ROW/2-4;
+rackRowA4.position.z=ROW_DEPTH+0.15;
+modeAGroup.add(rackRowA4);
+
+// Floor staging area — pallets on floor (mode A)
+[
+  [-4.5,0,-6],[0,0,-6],[4.5,0,-6],
+  [-4.5,0,-10],[0,0,-10],[4.5,0,-10],
+].forEach(([x,y,z])=>{
+  const fp=makeFloorPallet(M.box,M.wrap);
+  fp.position.set(x,0,z);modeAGroup.add(fp);
+});
+
+scene.add(modeAGroup);
+modeAGroup.visible=false;
+
+// ── Mode B: Green/orange racking, shrink-wrapped totes ────────────────────
+const modeBGroup=new THREE.Group();
+
+// Taller, fewer levels with bigger loads
+const rackRowB1=buildRackRow(-8.5,-18,RACK_BAYS_PER_ROW,3,RACK_H,M.steelGr,M.steelOrB,(b,lv)=>{
+  if(Math.random()<0.90) return makePalletLoad(M.boxC,M.wrapB,1);
+  return null;
+});
+modeBGroup.add(rackRowB1);
+
+const rackRowB2=buildRackRow(8.5,-18,RACK_BAYS_PER_ROW,3,RACK_H,M.steelGr,M.steelOrB,(b,lv)=>{
+  if(Math.random()<0.88) return makePalletLoad(M.box,M.wrapB,1);
+  return null;
+});
+rackRowB2.rotation.y=Math.PI;
+rackRowB2.position.x=RACK_BAY_W*RACK_BAYS_PER_ROW/2-4;
+modeBGroup.add(rackRowB2);
+
+// Floor pallets in rows (mode B — more organized)
+for(let row=0;row<3;row++){
+  for(let col=0;col<5;col++){
+    const fp=makePalletLoad(M.boxB,M.wrapB,1);
+    fp.position.set(-5+col*2.4,0,-4-row*2.6);
+    modeBGroup.add(fp);
+  }
+}
+
+// Additional second back row of racks
+const rackRowB3=buildRackRow(-8.5,-18,RACK_BAYS_PER_ROW,3,RACK_H,M.steelGr,M.steelOrB,(b,lv)=>{
+  if(Math.random()<0.72) return makePalletLoad(M.box,M.wrap,0);
+  return null;
+});
+rackRowB3.position.z=ROW_DEPTH+0.15;
+modeBGroup.add(rackRowB3);
+
+scene.add(modeBGroup);
+modeBGroup.visible=false;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANIMATION STATE MACHINE
+// ─────────────────────────────────────────────────────────────────────────────
+// TIMELINE (normalized 0–1, cycle = 18 seconds):
+// 0.00–0.08  → empty, hold
+// 0.08–0.22  → load mode A racking in (Y-rise from below)
+// 0.22–0.38  → hold full A (mode A visible)
+// 0.38–0.48  → clear mode A
+// 0.48–0.56  → brief empty hold
+// 0.56–0.68  → load mode B racking in
+// 0.68–0.82  → hold full B
+// 0.82–0.90  → clear mode B
+// 0.90–1.00  → zoom out, empty, reset
+
+const CYCLE=18000; // ms
+const TP={
+  aStart:0.08, aEnd:0.22,
+  aHoldEnd:0.38, aClearEnd:0.48,
+  emptyB:0.56, bEnd:0.68,
+  bHoldEnd:0.82, bClearEnd:0.92,
+};
+
+let cycleT=0,lastTime=null,animPlaying=false,wireOn=false;
+let currentPhase='empty';
+
+const phEls={
+  empty:    document.getElementById('ph-empty'),
+  loading:  document.getElementById('ph-loading'),
+  'full-a': document.getElementById('ph-full-a'),
+  'full-b': document.getElementById('ph-full-b'),
+  clearing: document.getElementById('ph-clearing'),
+};
+
+function setPhase(p){
+  if(p===currentPhase) return;
+  currentPhase=p;
+  Object.entries(phEls).forEach(([k,el])=>el.classList.toggle('active',k===p));
+  const nameEl=document.getElementById('callout-name');
+  const subEl=document.getElementById('callout-sub');
+  const labels={
+    empty:'EMPTY WAREHOUSE — CLEAR-SPAN FLOOR',
+    loading:'LOADING PALLET RACKING',
+    'full-a':'STORAGE MODE A — BOXED GOODS',
+    'full-b':'STORAGE MODE B — BULK TOTES',
+    clearing:'CLEARING — PREPARING FOR HANDOVER',
+  };
+  const subs={
+    empty:'22,000 SQ FT · 10M CLEAR HEIGHT · 5 DOCK DOORS',
+    loading:'PALLET RACKING SYSTEM · BLUE/ORANGE · 4 LEVELS',
+    'full-a':'SELECTIVE RACKING · CARDBOARD CASE STORAGE',
+    'full-b':'GREEN RACK SYSTEM · SHRINK-WRAPPED TOTE STORAGE',
+    clearing:'WAREHOUSE MANAGEMENT SYSTEM · INVENTORY CLEARED',
+  };
+  nameEl.textContent=labels[p]||'GTA INDUSTRIAL WAREHOUSE — INTERIOR';
+  subEl.textContent=subs[p]||'GREATER TORONTO AREA · COMMERCIAL CLASS A';
+  nameEl.classList.toggle('live',p!=='empty');
+  subEl.classList.toggle('live',p!=='empty');
+}
+
+// Each content group has an "enter progress" (0=hidden below, 1=in place)
+let progressA=0,progressB=0;
+const BASE_Y=-15; // how far below floor groups start
+
+function updateScene(t){
+  // Determine phase
+  let phase='empty';
+  if(t>=TP.aStart && t<TP.aEnd) phase='loading';
+  else if(t>=TP.aEnd && t<TP.aHoldEnd) phase='full-a';
+  else if(t>=TP.aHoldEnd && t<TP.aClearEnd) phase='clearing';
+  else if(t>=TP.emptyB && t<TP.bEnd) phase='loading';
+  else if(t>=TP.bEnd && t<TP.bHoldEnd) phase='full-b';
+  else if(t>=TP.bHoldEnd && t<TP.bClearEnd) phase='clearing';
+  setPhase(phase);
+
+  // Mode A progress
+  if(t<TP.aStart) progressA=0;
+  else if(t<TP.aEnd) progressA=eOut(ss(TP.aStart,TP.aEnd,t));
+  else if(t<TP.aHoldEnd) progressA=1;
+  else if(t<TP.aClearEnd) progressA=1-eOut(ss(TP.aHoldEnd,TP.aClearEnd,t));
+  else progressA=0;
+
+  // Mode B progress
+  if(t<TP.emptyB) progressB=0;
+  else if(t<TP.bEnd) progressB=eOut(ss(TP.emptyB,TP.bEnd,t));
+  else if(t<TP.bHoldEnd) progressB=1;
+  else if(t<TP.bClearEnd) progressB=1-eOut(ss(TP.bHoldEnd,TP.bClearEnd,t));
+  else progressB=0;
+
+  // Show/hide and Y-offset
+  modeAGroup.visible=progressA>0.01;
+  if(modeAGroup.visible) modeAGroup.position.y=lerp(BASE_Y,0,progressA);
+
+  modeBGroup.visible=progressB>0.01;
+  if(modeBGroup.visible) modeBGroup.position.y=lerp(BASE_Y,0,progressB);
+
+  // Scale for drama
+  if(modeAGroup.visible) modeAGroup.scale.y=lerp(0.1,1,Math.min(progressA*1.5,1));
+  if(modeBGroup.visible) modeBGroup.scale.y=lerp(0.1,1,Math.min(progressB*1.5,1));
+
+  document.getElementById('progress-fill').style.width=(t*100).toFixed(1)+'%';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOOLBAR / CAMERA PRESETS
+// ─────────────────────────────────────────────────────────────────────────────
+const views={
+  inside:   [-0.12, 0.00, 22],
+  wide:     [-0.28, 0.78, 36],
+  aisle:    [-0.06, 0.01, 16],
+  overhead: [-Math.PI/2+0.05, 0.00, 28],
+  dock:     [-0.18,-Math.PI/2,48],
+  street:   [-0.12,Math.PI,78],
+  sitebird: [-0.95,-0.72,112],
+};
+
+function setActiveView(name){
+  document.querySelectorAll('#toolbar [data-view]').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.view===name);
+  });
+}
+
+document.querySelectorAll('#toolbar [data-view]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const v=views[btn.dataset.view];
+    if(!v) return;
+    setActiveView(btn.dataset.view);
+    animCam(v[0],v[1],v[2],800);
+  });
+});
+
+function setAnimate(on){
+  animPlaying=on;
+  const btn=document.getElementById('animateBtn');
+  btn.classList.toggle('toggle-on',animPlaying);
+  btn.textContent=animPlaying?'Stop':'Animate';
+}
+
+function setWireframe(on){
+  wireOn=on;
+  document.getElementById('wireBtn').classList.toggle('toggle-on',wireOn);
+  allMats.forEach(m=>m.wireframe=wireOn);
+}
+
+document.getElementById('animateBtn').addEventListener('click',()=>setAnimate(!animPlaying));
+document.getElementById('wireBtn').addEventListener('click',()=>setWireframe(!wireOn));
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  setAnimate(false);setWireframe(false);
+  cycleT=0;updateScene(0);
+  setActiveView('inside');
+  animCam(views.inside[0],views.inside[1],views.inside[2],800);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADDITIVE SITE TOGGLES
+// ─────────────────────────────────────────────────────────────────────────────
+function setGroupToggle(id,group,on){
+  group.visible=on;
+  document.getElementById(id).classList.toggle('toggle-on',on);
+}
+function bindGroupToggle(id,group){
+  document.getElementById(id).addEventListener('click',()=>{
+    setGroupToggle(id,group,!group.visible);
+  });
+}
+bindGroupToggle('extShellBtn',siteGroups.shell);
+bindGroupToggle('logisticsBtn',siteGroups.logistics);
+bindGroupToggle('groundBtn',siteGroups.ground);
+bindGroupToggle('contextBtn',siteGroups.context);
+bindGroupToggle('landscapeBtn',siteGroups.landscape);
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  setGroupToggle('extShellBtn',siteGroups.shell,true);
+  setGroupToggle('logisticsBtn',siteGroups.logistics,true);
+  setGroupToggle('groundBtn',siteGroups.ground,true);
+  setGroupToggle('contextBtn',siteGroups.context,true);
+  setGroupToggle('landscapeBtn',siteGroups.landscape,true);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORBIT CONTROLS (manual)
+// ─────────────────────────────────────────────────────────────────────────────
+let dragging=false,lX=0,lY=0;
+canvas.addEventListener('mousedown',e=>{if(window.__gameActive) return; dragging=true;lX=e.clientX;lY=e.clientY;camAnim=null;canvas.style.cursor='grabbing';});
+window.addEventListener('mouseup',()=>{dragging=false;canvas.style.cursor='grab';});
+window.addEventListener('mousemove',e=>{
+  if(window.__gameActive || !dragging) return;
+  rotY+=(e.clientX-lX)*0.008;rotX+=(e.clientY-lY)*0.008;
+  const lim=Math.PI/2-0.05;rotX=Math.max(-lim,Math.min(lim,rotX));
+  lX=e.clientX;lY=e.clientY;applyCamera();
+});
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();dist+=e.deltaY*0.012;dist=Math.max(8,Math.min(120,dist));applyCamera();
+},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(window.__gameActive) return; if(e.touches.length===1){dragging=true;lX=e.touches[0].clientX;lY=e.touches[0].clientY;camAnim=null;}},{passive:true});
+canvas.addEventListener('touchend',()=>{dragging=false;},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  if(window.__gameActive || !dragging||e.touches.length!==1) return;
+  rotY+=(e.touches[0].clientX-lX)*0.008;rotX+=(e.touches[0].clientY-lY)*0.008;
+  const lim=Math.PI/2-0.05;rotX=Math.max(-lim,Math.min(lim,rotX));
+  lX=e.touches[0].clientX;lY=e.touches[0].clientY;applyCamera();
+},{passive:true});
+canvas.style.cursor='grab';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESIZE
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{
+  W=window.innerWidth;H=window.innerHeight;
+  camera.aspect=W/H;camera.updateProjectionMatrix();
+  renderer.setSize(W,H);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN LOOP
+// ─────────────────────────────────────────────────────────────────────────────
+const clock=new THREE.Clock();
+document.getElementById('ph-empty').classList.add('active');
+
+(function loop(time){
+  requestAnimationFrame(loop);
+  if(!lastTime) lastTime=time;
+  const dtMs=time-lastTime;lastTime=time;
+  clock.getDelta();
+  if(camAnim) camAnim(performance.now());
+  if(animPlaying){
+    cycleT=(cycleT+dtMs/CYCLE)%1.0;
+  }
+  updateScene(cycleT);
+
+  // Subtle light drift
+  const lt=time*0.00025;
+  warmAccent.position.set(
+    Math.sin(lt*1.3)*5,3+Math.sin(lt*0.7)*1.5,
+    Math.cos(lt*1.1)*8-4
+  );
+  warmAccent.intensity=1.0+Math.sin(lt*2.2)*0.3;
+
+  // Additive tree sway
+  swayingTrees.forEach(tr=>{
+    tr.rotation.z=Math.sin(lt*4.2+tr.userData.swayPhase)*tr.userData.swayAmp;
+    tr.rotation.x=Math.cos(lt*3.7+tr.userData.swayPhase)*tr.userData.swayAmp*0.35;
+  });
+
+  // Additive ambient vehicle motion
+  movers.forEach(m=>{
+    if(m.type==='road'){
+      const z=((time*m.speed)%m.range)-69;
+      m.mesh.position.z=z;
+      m.mesh.rotation.y=-Math.PI/2;
+    }else if(m.type==='roadBack'){
+      const z=69-((time*m.speed)%m.range);
+      m.mesh.position.z=z;
+      m.mesh.rotation.y=Math.PI/2;
+    }else if(m.type==='yard'){
+      const phase=(Math.sin(time*m.speed)+1)/2;
+      m.mesh.position.x=lerp(m.baseX-10,m.baseX+6,phase);
+      m.mesh.rotation.y=Math.PI+(Math.sin(time*m.speed)*0.08);
+    }
+  });
+
+  renderer.render(scene,camera);
+})(0);
+// ─────────────────────────────────────────────────────────────────────────────
+// GAME MODE — playable tap / click crane challenge
+// ─────────────────────────────────────────────────────────────────────────────
+window.__gameActive=false;
+let currentViewName='inside';
+const __origSetActiveView=setActiveView;
+setActiveView=function(name){ currentViewName=name; return __origSetActiveView(name); };
+views.game=[-0.88,0.44,48];
+
+const gEls={
+  level:document.getElementById('g-level'),
+  timer:document.getElementById('g-timer'),
+  score:document.getElementById('g-score'),
+  progress:document.getElementById('g-progress'),
+  speed:document.getElementById('g-speed'),
+  status:document.getElementById('g-status'),
+  btn:document.getElementById('gameBtn'),
+  hint:document.getElementById('hint')
+};
+
+const G_COLORS={
+  blue:{hex:0x69b7ff,name:'BLUE'},
+  green:{hex:0x6ff2a1,name:'GREEN'},
+  yellow:{hex:0xffdf71,name:'YELLOW'},
+  pink:{hex:0xff87a3,name:'PINK'},
+  cyan:{hex:0x7ef2ff,name:'CYAN'},
+  orange:{hex:0xffaa5c,name:'ORANGE'},
+};
+const G_LEVELS=[
+  {rows:3,cols:4,colors:['blue','yellow','green','pink'],time:28,bridge:18,trolley:18,hoist:14},
+  {rows:4,cols:4,colors:['blue','yellow','green','pink','cyan'],time:36,bridge:15,trolley:15,hoist:12},
+  {rows:5,cols:4,colors:['blue','yellow','green','pink','cyan','orange'],time:44,bridge:12,trolley:12,hoist:10},
+  {rows:6,cols:4,colors:['blue','yellow','green','pink','cyan','orange'],time:54,bridge:9,trolley:9,hoist:8},
+];
+const gameGroup=new THREE.Group();
+gameGroup.visible=false;
+scene.add(gameGroup);
+const gamePickables=[];
+const gameTempVec=new THREE.Vector3();
+const gameRaycaster=new THREE.Raycaster();
+const gamePointer=new THREE.Vector2();
+const gameState={active:false,level:0,score:0,timeLeft:0,selected:null,busy:false,queue:[],action:null,progress:0,total:0,pallets:[],bays:[],carried:null,levelDone:false,lastActionAt:0,lastNonGameView:'inside'};
+const gameTimers={levelAdvance:0,restartAt:0};
+
+function gStatus(msg){gEls.status.textContent=msg;}
+function gFormatTime(sec){sec=Math.max(0,Math.ceil(sec));const m=Math.floor(sec/60);const s=String(sec%60).padStart(2,'0');return `${m}:${s}`;}
+function gCanvasTexture(text){
+  const c=document.createElement('canvas');c.width=512;c.height=128;const x=c.getContext('2d');
+  x.clearRect(0,0,c.width,c.height);
+  x.fillStyle='rgba(12,16,22,0.88)';x.fillRect(0,0,c.width,c.height);
+  x.strokeStyle='rgba(255,255,255,0.28)';x.lineWidth=4;x.strokeRect(8,8,c.width-16,c.height-16);
+  x.fillStyle='#f5f6f8';x.font='700 28px "DM Mono", monospace';x.textAlign='center';x.textBaseline='middle';
+  x.fillText('MEGHA MEHTA REAL ESTATE',c.width/2,c.height/2);
+  const tx=new THREE.CanvasTexture(c);tx.encoding=THREE.sRGBEncoding;return tx;
+}
+const brandTex=gCanvasTexture('MEGHA MEHTA REAL ESTATE');
+
+function gClearGroup(group){ while(group.children.length){ const child=group.children.pop(); group.remove(child);} }
+function gShuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+function gMakeBay(colorId){
+  const color=G_COLORS[colorId].hex;
+  const group=new THREE.Group();
+  const padMat=new THREE.MeshStandardMaterial({color,transparent:true,opacity:0.18,roughness:0.38,metalness:0.15,emissive:0x000000});
+  const pad=new THREE.Mesh(new THREE.BoxGeometry(2.15,0.06,1.55),padMat); pad.position.y=0.03; group.add(pad);
+  const outline=new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(2.25,0.08,1.65)),
+    new THREE.LineBasicMaterial({color})
+  );
+  outline.position.y=0.04; group.add(outline);
+  const orb=new THREE.Mesh(new THREE.SphereGeometry(0.14,16,16),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.6,roughness:0.3}));
+  orb.position.set(1.28,0.22,0); group.add(orb);
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(2.55,0.8,1.9),new THREE.MeshBasicMaterial({transparent:true,opacity:0}));
+  hit.position.y=0.4; hit.userData={gType:'bay',ref:group}; group.add(hit);
+  group.userData={kind:'bay',colorId,occupied:false,pad,outline,orb,hit,flashUntil:0};
+  group.userData.setState=function(state){
+    if(state==='match'){ padMat.opacity=0.32; padMat.emissive.setHex(color); padMat.emissiveIntensity=0.18; outline.material.color.setHex(color); orb.scale.setScalar(1.16); }
+    else if(state==='selected'){ padMat.opacity=0.5; padMat.emissive.setHex(color); padMat.emissiveIntensity=0.36; outline.material.color.setHex(0xffffff); orb.scale.setScalar(1.26); }
+    else if(state==='error'){ padMat.opacity=0.42; padMat.emissive.setHex(0xff3355); padMat.emissiveIntensity=0.5; outline.material.color.setHex(0xff3355); orb.scale.setScalar(1.28); }
+    else { padMat.opacity=group.userData.occupied?0.12:0.18; padMat.emissive.setHex(0x000000); padMat.emissiveIntensity=0; outline.material.color.setHex(color); orb.scale.setScalar(1); }
+  };
+  gamePickables.push(hit);
+  return group;
+}
+
+function gMakePallet(colorId,branded=false){
+  const color=G_COLORS[colorId].hex;
+  const group=new THREE.Group();
+  const woodMat=new THREE.MeshStandardMaterial({color:0x987248,roughness:0.86,metalness:0.04});
+  const slatGeo=new THREE.BoxGeometry(1.64,0.10,0.16);
+  [-0.42,0,0.42].forEach(z=>{ const slat=new THREE.Mesh(slatGeo,woodMat); slat.position.set(0,0.08,z); group.add(slat); });
+  [-0.58,0,0.58].forEach(x=>{ const runner=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.12,1.18),woodMat); runner.position.set(x,0.02,0); group.add(runner); });
+  const wrapMat=new THREE.MeshStandardMaterial({color,roughness:0.28,metalness:0.05,transparent:true,opacity:0.96,emissive:color,emissiveIntensity:0.08});
+  const load=new THREE.Mesh(new THREE.BoxGeometry(1.42,0.92,1.02),wrapMat); load.position.y=0.62; group.add(load);
+  const cap=new THREE.Mesh(new THREE.BoxGeometry(1.48,0.04,1.08),new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.35,metalness:0.02,transparent:true,opacity:0.2}));
+  cap.position.y=1.1; group.add(cap);
+  const glow=new THREE.Mesh(new THREE.RingGeometry(0.82,1.02,28),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.52,side:THREE.DoubleSide}));
+  glow.rotation.x=-Math.PI/2; glow.position.y=0.03; glow.visible=false; group.add(glow);
+  if(branded){
+    const labelMat=new THREE.MeshBasicMaterial({map:brandTex,transparent:true,opacity:0.95});
+    const sideA=new THREE.Mesh(new THREE.PlaneGeometry(1.1,0.26),labelMat); sideA.position.set(0,0.58,0.52); group.add(sideA);
+    const sideB=new THREE.Mesh(new THREE.PlaneGeometry(1.1,0.26),labelMat); sideB.rotation.y=Math.PI; sideB.position.set(0,0.58,-0.52); group.add(sideB);
+  }
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(1.9,1.4,1.4),new THREE.MeshBasicMaterial({transparent:true,opacity:0}));
+  hit.position.y=0.65; hit.userData={gType:'pallet',ref:group}; group.add(hit);
+  group.userData={kind:'pallet',colorId,placed:false,wrapMat,glow,home:new THREE.Vector3(),targetBay:null,branded,hit};
+  group.userData.setSelected=function(on){ wrapMat.emissiveIntensity=on?0.36:0.08; glow.visible=on; glow.scale.setScalar(on?1.08:1); };
+  gamePickables.push(hit);
+  return group;
+}
+
+function gMakeCrane(){
+  const root=new THREE.Group();
+  const railMat=new THREE.MeshStandardMaterial({color:0x13243e,roughness:0.42,metalness:0.86});
+  const beamMat=new THREE.MeshStandardMaterial({color:0xc85a00,roughness:0.4,metalness:0.8});
+  const cartMat=new THREE.MeshStandardMaterial({color:0xf0c200,roughness:0.32,metalness:0.2,emissive:0x5a3200,emissiveIntensity:0.35});
+  const railL=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.24,26),railMat); railL.position.set(-11.7,7.15,-4); root.add(railL);
+  const railR=railL.clone(); railR.position.x=11.7; root.add(railR);
+  [-16,8].forEach(z=>{ [-11.7,11.7].forEach(x=>{ const post=new THREE.Mesh(new THREE.BoxGeometry(0.22,7,0.22),railMat); post.position.set(x,3.5,z); root.add(post);
+      const guard=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.65,0.42),new THREE.MeshStandardMaterial({color:0xcc3030,roughness:0.45,metalness:0.3})); guard.position.set(x,0.33,z); root.add(guard); }); });
+  const bridge=new THREE.Group(); bridge.position.set(0,7.05,-4); root.add(bridge);
+  const beam=new THREE.Mesh(new THREE.BoxGeometry(23.8,0.34,0.34),beamMat); bridge.add(beam);
+  const trolley=new THREE.Group(); bridge.add(trolley);
+  const cart=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.62,1.05),cartMat); cart.position.y=-0.25; trolley.add(cart);
+  const cable=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1,10),new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.9,metalness:0.2})); trolley.add(cable);
+  const hook=new THREE.Group(); trolley.add(hook);
+  const h1=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.18,0.26),new THREE.MeshStandardMaterial({color:0x9ea8b4,roughness:0.34,metalness:0.76})); hook.add(h1);
+  const h2=new THREE.Mesh(new THREE.TorusGeometry(0.16,0.04,8,20,Math.PI*1.4),new THREE.MeshStandardMaterial({color:0xf0c200,roughness:0.3,metalness:0.28})); h2.rotation.z=Math.PI/2; h2.position.y=-0.16; hook.add(h2);
+  const crane={root,bridge,trolley,cable,hook,hookDepth:1.2};
+  crane.update=function(){ crane.cable.scale.y=crane.hookDepth; crane.cable.position.y=-crane.hookDepth*0.5; crane.hook.position.y=-crane.hookDepth; };
+  crane.update();
+  return crane;
+}
+const gCrane=gMakeCrane();
+gameGroup.add(gCrane.root);
+
+function gSetHudVisible(on){
+  document.body.classList.toggle('game-active',on);
+  gEls.btn.classList.toggle('toggle-on',on);
+  gEls.btn.textContent=on?'Exit Game':'Game Mode';
+  gEls.hint.textContent=on?'TAP PALLET · TAP MATCHING BAY · GAME MODE ACTIVE':'DRAG TO ORBIT · SCROLL TO ZOOM · ANIMATE TO START / STOP';
+}
+
+function gRefreshHud(){
+  const lv=G_LEVELS[gameState.level]||G_LEVELS[0];
+  gEls.level.textContent=`${Math.min(gameState.level+1,G_LEVELS.length)} / ${G_LEVELS.length}`;
+  gEls.timer.textContent=gFormatTime(gameState.timeLeft);
+  gEls.score.textContent=String(Math.round(gameState.score));
+  gEls.progress.textContent=`${gameState.progress} / ${gameState.total}`;
+  gEls.speed.innerHTML=`${Math.round((lv.bridge/G_LEVELS[0].bridge)*100)}% bridge<br>· ${Math.round((lv.hoist/G_LEVELS[0].hoist)*100)}% hoist`;
+}
+
+function gClearLevel(){
+  gamePickables.length=0;
+  gameState.pallets=[]; gameState.bays=[]; gameState.selected=null; gameState.busy=false; gameState.queue=[]; gameState.action=null; gameState.carried=null; gameState.progress=0; gameState.total=0; gameState.levelDone=false;
+  while(gameGroup.children.length>1){ gameGroup.remove(gameGroup.children[gameGroup.children.length-1]); }
+}
+
+function gBuildLevel(index){
+  const level=G_LEVELS[index];
+  gClearLevel();
+  gameGroup.add(gCrane.root);
+  gCrane.bridge.position.z=-4;
+  gCrane.trolley.position.x=0;
+  gCrane.hookDepth=1.2; gCrane.update();
+  const floor=new THREE.Mesh(new THREE.BoxGeometry(22,0.08,26),new THREE.MeshStandardMaterial({color:0x65707d,roughness:0.82,metalness:0.08,transparent:true,opacity:0.92}));
+  floor.position.set(0,0.04,-4); gameGroup.add(floor);
+  const laneMat=new THREE.MeshStandardMaterial({color:0xe7edf4,roughness:0.55,metalness:0.02,emissive:0x202840,emissiveIntensity:0.15});
+  const centerLane=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.02,24),laneMat); centerLane.position.set(0,0.09,-4); gameGroup.add(centerLane);
+  for(let i=0;i<level.rows+1;i++){
+    const z=-12.6+i*(24/(level.rows+0.5));
+    const line=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.02,10.2),laneMat); line.rotation.y=Math.PI/2; line.position.set(5.5,0.09,z); gameGroup.add(line);
+    const lineL=line.clone(); lineL.position.x=-5.5; gameGroup.add(lineL);
+  }
+  const bridgeViewGuide=new THREE.Mesh(new THREE.BoxGeometry(21,0.02,0.08),new THREE.MeshStandardMaterial({color:0x8fb7ff,transparent:true,opacity:0.25}));
+  bridgeViewGuide.position.set(0,6.95,-4); gameGroup.add(bridgeViewGuide);
+
+  const slots=[];
+  for(let r=0;r<level.rows;r++){
+    for(let c=0;c<level.cols;c++){
+      const colorId=level.colors[(r+c)%level.colors.length];
+      slots.push({colorId,row:r,col:c});
+    }
+  }
+  const staging=gShuffle(slots.map((s,i)=>({colorId:s.colorId,brand:Math.random()<0.38,seed:i})));
+  const zStart=-12 + ((6-level.rows)*1.2);
+  const zGap=level.rows>1 ? (18/(level.rows-1)) : 0;
+  const bayXs=[2.2,5.0,7.8,10.6];
+  const srcXs=[-10.0,-7.2,-4.4,-1.6];
+  slots.forEach((slot,i)=>{
+    const z=zStart+slot.row*zGap;
+    const bay=gMakeBay(slot.colorId); bay.position.set(bayXs[slot.col],0,z); bay.userData.slotIndex=i; gameGroup.add(bay); gameState.bays.push(bay);
+  });
+  staging.forEach((slot,i)=>{
+    const row=Math.floor(i/level.cols), col=i%level.cols; const z=zStart+row*zGap; const p=gMakePallet(slot.colorId,slot.brand);
+    p.position.set(srcXs[col],0,z); p.userData.home.copy(p.position); gameGroup.add(p); gameState.pallets.push(p);
+  });
+  gameState.total=gameState.pallets.length;
+  gameState.timeLeft=level.time;
+  gStatus(`Level ${index+1} live. Tap a pallet to lock it to the crane.`);
+  gUpdateHighlights();
+  gRefreshHud();
+}
+
+function gUpdateHighlights(){
+  gameState.pallets.forEach(p=>p.userData.setSelected(p===gameState.selected));
+  gameState.bays.forEach(b=>{
+    if(b.userData.occupied) b.userData.setState('idle');
+    else if(gameState.selected && b.userData.colorId===gameState.selected.userData.colorId) b.userData.setState('match');
+    else b.userData.setState('idle');
+  });
+}
+
+function gPick(ev){
+  const rect=canvas.getBoundingClientRect();
+  let cx,cy;
+  if(ev.changedTouches && ev.changedTouches[0]){ cx=ev.changedTouches[0].clientX; cy=ev.changedTouches[0].clientY; }
+  else { cx=ev.clientX; cy=ev.clientY; }
+  gamePointer.x=((cx-rect.left)/rect.width)*2-1;
+  gamePointer.y=-((cy-rect.top)/rect.height)*2+1;
+  gameRaycaster.setFromCamera(gamePointer,camera);
+  const hits=gameRaycaster.intersectObjects(gamePickables,true);
+  if(!hits.length) return null;
+  const hit=hits[0].object.userData;
+  return hit && hit.ref ? hit : null;
+}
+
+function gPenalty(msg,bay){
+  gameState.timeLeft=Math.max(0,gameState.timeLeft-3.5);
+  gameState.score=Math.max(0,gameState.score-60);
+  if(bay){ bay.userData.setState('error'); bay.userData.flashUntil=performance.now()+260; }
+  gStatus(msg);
+  gRefreshHud();
+}
+
+function gQueue(kind,target,duration,onDone){ gameState.queue.push({kind,target,duration:Math.max(180,duration),onDone}); }
+function gStartNextAction(now){ if(gameState.action || !gameState.queue.length) return; const a=gameState.queue.shift(); a.start=now; if(a.kind==='bridge') a.from=gCrane.bridge.position.z; else if(a.kind==='trolley') a.from=gCrane.trolley.position.x; else a.from=gCrane.hookDepth; gameState.action=a; }
+function gUpdateAction(now){
+  if(!gameState.action){ gStartNextAction(now); return; }
+  const a=gameState.action; const t=Math.min(1,(now-a.start)/a.duration); const e=a.kind==='hoist'?eIO(t):eOut(t); const v=a.from+(a.target-a.from)*e;
+  if(a.kind==='bridge') gCrane.bridge.position.z=v; else if(a.kind==='trolley') gCrane.trolley.position.x=v; else { gCrane.hookDepth=v; gCrane.update(); }
+  if(t>=1){ const done=a.onDone; gameState.action=null; if(done) done(); gStartNextAction(now); }
+}
+
+function gMovePalletToBay(pallet,bay){
+  const lv=G_LEVELS[gameState.level];
+  const src=pallet.position.clone(); const dst=bay.position.clone();
+  gameState.busy=true; gameState.selected=null; gUpdateHighlights();
+  gStatus(`${G_COLORS[pallet.userData.colorId].name} locked. Crane moving to matching bay.`);
+  const durBridge1=Math.abs(gCrane.bridge.position.z-src.z)/lv.bridge*1000;
+  const durTrolley1=Math.abs(gCrane.trolley.position.x-src.x)/lv.trolley*1000;
+  const durBridge2=Math.abs(src.z-dst.z)/lv.bridge*1000;
+  const durTrolley2=Math.abs(src.x-dst.x)/lv.trolley*1000;
+  const down=Math.abs(gCrane.hookDepth-6.2)/lv.hoist*1000;
+  const up=Math.abs(6.2-1.25)/lv.hoist*1000;
+  gQueue('bridge',src.z,durBridge1);
+  gQueue('trolley',src.x,durTrolley1);
+  gQueue('hoist',6.2,down,()=>{ gameState.carried=pallet; });
+  gQueue('hoist',1.25,up);
+  gQueue('bridge',dst.z,durBridge2);
+  gQueue('trolley',dst.x,durTrolley2);
+  gQueue('hoist',6.2,down,()=>{
+    gameState.carried=null;
+    pallet.position.copy(dst); pallet.position.y=0; pallet.userData.placed=true; bay.userData.occupied=true;
+    gameState.progress+=1; gameState.score+=140 + Math.max(0,Math.round(gameState.timeLeft*4));
+    gRefreshHud();
+  });
+  gQueue('hoist',1.25,up,()=>{
+    gameState.busy=false; gUpdateHighlights();
+    if(gameState.progress>=gameState.total && !gameState.levelDone){
+      gameState.levelDone=true;
+      if(gameState.level < G_LEVELS.length-1){
+        gStatus(`Level ${gameState.level+1} clear. Loading Level ${gameState.level+2}...`);
+        gameTimers.levelAdvance=performance.now()+1200;
+      }else{
+        gStatus(`All four levels cleared. Final score ${Math.round(gameState.score)}.`);
+      }
+    }else{
+      gStatus(`Pallet placed. ${gameState.total-gameState.progress} loads remain.`);
+    }
+  });
+}
+
+function gEnterGame(){
+  if(gameState.active) return gExitGame();
+  gameState.lastNonGameView=currentViewName||'inside';
+  window.__gameActive=true; gameState.active=true; gameState.level=0; gameState.score=0; gameTimers.levelAdvance=0; gameTimers.restartAt=0;
+  setAnimate(false); cycleT=0; updateScene(0); gameGroup.visible=true; gSetHudVisible(true); gBuildLevel(0); setActiveView('game'); animCam(views.game[0],views.game[1],views.game[2],850);
+}
+function gExitGame(){
+  window.__gameActive=false; gameState.active=false; gameState.selected=null; gameState.queue=[]; gameState.action=null; gameState.busy=false; gameState.carried=null; gameTimers.levelAdvance=0; gameTimers.restartAt=0;
+  gameGroup.visible=false; gSetHudVisible(false); gStatus('Game mode ready.');
+  animCam(views[gameState.lastNonGameView][0],views[gameState.lastNonGameView][1],views[gameState.lastNonGameView][2],800);
+  setActiveView(gameState.lastNonGameView);
+}
+
+gEls.btn.addEventListener('click',gEnterGame);
+document.getElementById('resetBtn').addEventListener('click',()=>{ if(gameState.active) gExitGame(); });
+
+function gHandleTap(ev){
+  if(!gameState.active) return;
+  const hit=gPick(ev);
+  if(!hit){ if(gameState.selected && !gameState.busy){ gameState.selected=null; gUpdateHighlights(); gStatus('Selection cleared. Tap a new pallet to keep the crane moving.'); } return; }
+  if(gameState.busy) return;
+  if(hit.gType==='pallet'){
+    const pallet=hit.ref; if(pallet.userData.placed) return;
+    gameState.selected=pallet; gUpdateHighlights();
+    gStatus(`${G_COLORS[pallet.userData.colorId].name} pallet selected. Tap a matching bay.`);
+  }else if(hit.gType==='bay'){
+    const bay=hit.ref;
+    if(!gameState.selected) return gPenalty('Tap a pallet first, then a bay.',bay);
+    if(bay.userData.occupied) return gPenalty('That bay is already full. Pick another slot.',bay);
+    if(bay.userData.colorId!==gameState.selected.userData.colorId) return gPenalty('Wrong bay. Time cut immediately.',bay);
+    gMovePalletToBay(gameState.selected,bay);
+  }
+}
+canvas.addEventListener('pointerup',gHandleTap,{passive:true});
+
+let gLast=performance.now();
+(function gLoop(now){
+  requestAnimationFrame(gLoop);
+  const dt=Math.min(50,now-gLast); gLast=now;
+  if(!gameState.active) return;
+  if(!gameState.levelDone && !gameTimers.restartAt){
+    gameState.timeLeft=Math.max(0,gameState.timeLeft-dt/1000);
+    if(gameState.timeLeft<=0){
+      gStatus(`Level ${gameState.level+1} failed. Restarting level...`);
+      gameTimers.restartAt=now+1200;
+      gameState.busy=true; gameState.queue=[]; gameState.action=null; gameState.carried=null;
+    }
+  }
+  gameState.bays.forEach(b=>{ if(b.userData.flashUntil && now>b.userData.flashUntil){ b.userData.flashUntil=0; gUpdateHighlights(); } });
+  if(gameTimers.levelAdvance && now>=gameTimers.levelAdvance){ gameTimers.levelAdvance=0; gameState.level+=1; gBuildLevel(gameState.level); }
+  if(gameTimers.restartAt && now>=gameTimers.restartAt){ gameTimers.restartAt=0; gameState.busy=false; gBuildLevel(gameState.level); }
+  gUpdateAction(now);
+  if(gameState.carried){ gCrane.hook.getWorldPosition(gameTempVec); gameGroup.worldToLocal(gameTempVec); gameState.carried.position.copy(gameTempVec); gameState.carried.position.y-=0.46; }
+  gRefreshHud();
+})();
+
+
+
+</script>
+</body>
 </html>
