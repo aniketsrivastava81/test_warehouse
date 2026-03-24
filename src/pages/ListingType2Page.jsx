@@ -28,8 +28,13 @@ export default function ListingType2Page({ openLeadModal }) {
             </div>
           </div>
           <div className="card soft">
-            <div className="iframe-shell">
-              <iframe title="ListingType2 warehouse animation and game" src="/warehouse-game/index.html" loading="eager" />
+            <div className="warehouse-page-shell">
+                    <iframe
+                      className="warehouse-embed"
+                      title="ListingType2 warehouse animation and game"
+                      src="/warehouse-game/index.html"
+                      loading="eager"
+                    />
             </div>
           </div>
         </div>
