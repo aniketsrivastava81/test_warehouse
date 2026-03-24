@@ -5,6 +5,7 @@ import App from "./App";
 import "leaflet/dist/leaflet.css";
 import "./styles/base.css";
 import "./styles/landing.css";
+import "./styles/app.css";
 import "./styles/react-addons.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
