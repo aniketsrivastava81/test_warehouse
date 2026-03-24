@@ -70,7 +70,85 @@ body{background:#05060a;color:#e0ddd8;font-family:'DM Mono',monospace;}
   position:fixed;inset:0;pointer-events:none;z-index:6;
   background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.028) 3px,rgba(0,0,0,.028) 4px);
 }
+#toolbarMenuBtn{
+  position:fixed; top:12px; left:12px; z-index:70;
+  display:none; align-items:center; gap:8px;
+  background:rgba(18,22,28,.92);
+  border:1px solid rgba(255,255,255,.12);
+  color:#eef4ff; padding:10px 14px; border-radius:18px; cursor:pointer;
+  font-size:11px; letter-spacing:.6px; font-family:'DM Mono',monospace;
+  backdrop-filter:blur(10px);
+  box-shadow:0 12px 24px rgba(0,0,0,.28);
+}
+#toolbarBackdrop{
+  position:fixed; inset:0; z-index:60;
+  background:rgba(5,8,12,.42);
+  opacity:0; pointer-events:none; transition:opacity .2s ease;
+}
+#toolbarBackdrop.show{opacity:1;pointer-events:auto;}
 
+#rotatePrompt{
+  position:fixed; inset:0; z-index:80;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(5,8,12,.72);
+  backdrop-filter:blur(8px);
+  padding:24px;
+}
+#rotatePrompt.show{display:flex;}
+#rotatePrompt .rotate-card{
+  max-width:320px; text-align:center;
+  background:rgba(18,22,28,.94);
+  border:1px solid rgba(255,255,255,.12);
+  color:#eef4ff; padding:20px 18px; border-radius:22px;
+  box-shadow:0 18px 36px rgba(0,0,0,.34);
+}
+#rotatePrompt .rotate-card strong{
+  display:block; margin-bottom:8px;
+  font-size:12px; letter-spacing:2px; text-transform:uppercase;
+}
+#rotatePrompt .rotate-card span{
+  display:block; font-size:11px; line-height:1.7; color:#d3dbe6;
+}
+
+@media (max-width:1280px){
+  #toolbarMenuBtn{display:flex;}
+  #toolbar{
+    top:56px; left:12px; right:12px; transform:none;
+    width:auto; max-height:calc(100vh - 76px); overflow:auto;
+    display:none; flex-direction:column; align-items:stretch; justify-content:flex-start;
+    gap:8px; padding:12px; border-radius:22px;
+    background:rgba(10,14,18,.90);
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 18px 36px rgba(0,0,0,.34);
+    backdrop-filter:blur(12px);
+    z-index:65;
+  }
+  #toolbar.open{display:flex;}
+  #toolbar button{
+    width:100%;
+    text-align:left;
+    border-radius:16px;
+    padding:11px 14px;
+  }
+  #ui{top:68px;padding:18px 16px;}
+  #hint{
+    left:16px; right:16px; bottom:14px;
+    font-size:8px; letter-spacing:1.6px;
+  }
+}
+
+@media (max-width:900px){
+  #game-hud{top:74px;left:16px;right:16px;width:auto;justify-content:flex-start;}
+  #game-hud .gcard{min-width:118px;flex:1 1 118px;}
+  #game-brand{top:auto;left:16px;right:16px;bottom:120px;max-width:none;}
+  #game-help,#game-status{left:16px;right:16px;max-width:none;}
+  #game-status{bottom:16px;text-align:left;}
+  #game-help{bottom:88px;}
+}
+
+@media (max-width:900px) and (orientation:portrait){
+  #hint{display:none;}
+}
 /* ── GAME UI ── */
 #ui,#callout,#hint,#progress-bar{transition:opacity .35s ease,transform .35s ease;}
 #ui.hidden,#callout.hidden,#hint.hidden,#progress-bar.hidden{opacity:0;pointer-events:none;}
@@ -210,6 +288,15 @@ body{background:#05060a;color:#e0ddd8;font-family:'DM Mono',monospace;}
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<button id="toolbarMenuBtn" aria-label="Open controls" aria-expanded="false">☰ Controls</button>
+<div id="toolbarBackdrop"></div>
+
+<div id="rotatePrompt">
+  <div class="rotate-card">
+    <strong>Rotate your screen</strong>
+    <span>For a bigger warehouse view, switch to landscape mode.</span>
+  </div>
+</div>
 <div id="vignette"></div>
 <div id="scanlines"></div>
 
@@ -1545,6 +1632,44 @@ document.querySelectorAll('#toolbar [data-view]').forEach(btn=>{
   });
 });
 
+const toolbar=document.getElementById('toolbar');
+const toolbarMenuBtn=document.getElementById('toolbarMenuBtn');
+const toolbarBackdrop=document.getElementById('toolbarBackdrop');
+const rotatePrompt=document.getElementById('rotatePrompt');
+
+function closeToolbarMenu(){
+  toolbar.classList.remove('open');
+  toolbarBackdrop.classList.remove('show');
+  toolbarMenuBtn.setAttribute('aria-expanded','false');
+}
+function toggleToolbarMenu(){
+  if(window.innerWidth > 1280) return;
+  const open=!toolbar.classList.contains('open');
+  toolbar.classList.toggle('open',open);
+  toolbarBackdrop.classList.toggle('show',open);
+  toolbarMenuBtn.setAttribute('aria-expanded',open?'true':'false');
+}
+function updateMobileWarehouseUI(){
+  const showRotate = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
+  rotatePrompt.classList.toggle('show',showRotate);
+
+  if(window.innerWidth > 1280){
+    closeToolbarMenu();
+  }
+}
+
+toolbarMenuBtn.addEventListener('click',toggleToolbarMenu);
+toolbarBackdrop.addEventListener('click',closeToolbarMenu);
+
+document.querySelectorAll('#toolbar button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    if(window.innerWidth <= 1280) closeToolbarMenu();
+  });
+});
+
+updateMobileWarehouseUI();
+window.addEventListener('orientationchange',updateMobileWarehouseUI);
+
 function setAnimate(on){
   animPlaying=on;
   const btn=document.getElementById('animateBtn');
@@ -2110,11 +2235,25 @@ window.addEventListener('keyup',e=>{
 // ─────────────────────────────────────────────────────────────────────────────
 // RESIZE
 // ─────────────────────────────────────────────────────────────────────────────
+
 window.addEventListener('resize',()=>{
   W=window.innerWidth;H=window.innerHeight;
   camera.aspect=W/H;camera.updateProjectionMatrix();
   renderer.setSize(W,H);
+  updateMobileWarehouseUI();
 });
+
+/*window.addEventListener('resize',()=>{
+  W=window.innerWidth;H=window.innerHeight;
+  camera.aspect=W/H;camera.updateProjectionMatrix();
+  renderer.setSize(W,H);
+});
+*/
+
+
+
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN LOOP
