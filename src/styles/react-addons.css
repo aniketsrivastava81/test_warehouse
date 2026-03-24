@@ -26,9 +26,9 @@ html, body, #root{
 .nav a.active-link,
 .nav-drawer a.active-link{
   color:var(--text);
-  background:rgba(255,255,255,.78);
-  border:1px solid rgba(24,32,43,.08);
-  box-shadow:0 8px 18px rgba(55,64,82,.06);
+  background:rgba(255,255,255,.82);
+  border:1px solid rgba(91,124,255,.16);
+  box-shadow:0 8px 18px rgba(91,124,255,.10);
 }
 
 .warehouse-page{
@@ -40,14 +40,14 @@ html, body, #root{
   height:var(--warehouse-frame-height);
   border:0;
   border-radius:28px;
-  background:#05060a;
+  background:#06101d;
   box-shadow:var(--shadow);
 }
 
 .warehouse-frame-wrap{
   overflow:hidden;
   border-radius:28px;
-  border:1px solid rgba(24,32,43,.08);
+  border:1px solid rgba(91,124,255,.14);
   box-shadow:var(--shadow);
 }
 
@@ -67,7 +67,7 @@ html, body, #root{
   padding:12px;
   border-radius:14px;
   border:1px solid var(--line);
-  background:rgba(255,255,255,.72);
+  background:rgba(244,248,255,.84);
   color:var(--text);
   resize:vertical;
 }
