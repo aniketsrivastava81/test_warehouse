@@ -32,13 +32,13 @@ export default function WarehousePage() {
           </div>
         </div>
 
-        <div className="warehouse-frame-wrap">
-          <iframe
-            className="warehouse-frame"
-            src="/warehouse.html"
-            title="3D warehouse experience"
-            loading="lazy"
-          ></iframe>
+        <div className="warehouse-page-shell">
+            <iframe
+              className="warehouse-embed"
+              src="/warehouse.html"
+              title="3D warehouse experience"
+              loading="lazy"
+            ></iframe>
         </div>
       </div>
     </section>

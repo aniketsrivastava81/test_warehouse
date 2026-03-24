@@ -110,7 +110,7 @@ body{background:#05060a;color:#e0ddd8;font-family:'DM Mono',monospace;}
   display:block; font-size:11px; line-height:1.7; color:#d3dbe6;
 }
 
-@media (max-width:1280px){
+@media (max-width:900px){
   #toolbarMenuBtn{display:flex;}
   #toolbar{
     top:56px; left:12px; right:12px; transform:none;
@@ -1643,7 +1643,7 @@ function closeToolbarMenu(){
   toolbarMenuBtn.setAttribute('aria-expanded','false');
 }
 function toggleToolbarMenu(){
-  if(window.innerWidth > 1280) return;
+  if(window.innerWidth > 900) return;
   const open=!toolbar.classList.contains('open');
   toolbar.classList.toggle('open',open);
   toolbarBackdrop.classList.toggle('show',open);
@@ -1653,7 +1653,7 @@ function updateMobileWarehouseUI(){
   const showRotate = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
   rotatePrompt.classList.toggle('show',showRotate);
 
-  if(window.innerWidth > 1280){
+  if(window.innerWidth > 900){
     closeToolbarMenu();
   }
 }
@@ -1663,7 +1663,7 @@ toolbarBackdrop.addEventListener('click',closeToolbarMenu);
 
 document.querySelectorAll('#toolbar button').forEach(btn=>{
   btn.addEventListener('click',()=>{
-    if(window.innerWidth <= 1280) closeToolbarMenu();
+    if(window.innerWidth <= 900) closeToolbarMenu();
   });
 });
 
