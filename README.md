@@ -1,13 +1,18 @@
-# Megha Mehta Real Estate — Crane Rush
+# Megha Mehta React Website
 
-Updated Vite + Three.js build of the warehouse game.
+This is a Vite + React rebuild of the Megha Mehta commercial leasing website.
 
-## What changed
-- Rebuilt around a **tap/click crane flow** for mobile friendliness
-- 4 levels with **slower crane speed** each round
-- Detailed warehouse shell using the uploaded interior as the visual basis
-- Random pallet branding for **Megha Mehta Real Estate**
-- Session length expanded toward **2+ minutes** with 60 total routed pallets
+## Included pages
+- `/` Home / landing page
+- `/listings`
+- `/listings/:id`
+- `/tools`
+- `/guides`
+- `/listing-type-2` (warehouse animation + game)
+
+## Notes
+- The warehouse experience is included inside this same project under `public/warehouse-game/` and embedded on the ListingType2 page.
+- The static HTML pages were ported into React with shared header/footer/modal and page-specific logic rewritten for React routing.
 
 ## Run
 ```bash

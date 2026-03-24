@@ -1,12 +1,16 @@
-# Implementation checklist
+# Megha Mehta React Rebuild Checklist
 
-- [x] Mobile-friendly tap/click interaction instead of drag
-- [x] Overhead crane / pulley mechanic with visible bridge, trolley, hook, and cable
-- [x] 4 escalating levels
-- [x] Crane speed reduced per level
-- [x] Total pallet count increased for longer dwell time
-- [x] More pallet colors introduced
-- [x] Random Megha Mehta Real Estate branded wraps
-- [x] Warehouse shell rebuilt with higher detail, dock doors, columns, beams, lights, racks, and floor markings
-- [x] UI restyled to better match the uploaded warehouse presentation language
-- [x] Project kept standalone so the live page is not altered yet
+- [x] Created a single React + Vite project
+- [x] Added React Router page structure
+- [x] Converted shared header into React
+- [x] Converted shared footer into React
+- [x] Converted lead magnet modal into React
+- [x] Ported landing page into the React app
+- [x] Ported listings page filters and map into the React app
+- [x] Ported property detail page into the React app
+- [x] Ported guides/blog page into the React app
+- [x] Ported tools page interactivity into the React app
+- [x] Added new `ListingType2` page
+- [x] Embedded the working warehouse animation/game from the same repo
+- [x] Added SPA-friendly Vercel rewrite config
+- [x] Kept the project self-contained for GitHub/Vercel upload
