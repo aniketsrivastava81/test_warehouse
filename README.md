@@ -1,26 +1,22 @@
-# Megha Mehta React Website
+# Megha Mehta React Migration
 
-This is a Vite + React rebuild of the Megha Mehta commercial leasing website.
+This is a Vite + React conversion of the uploaded static project.
 
-## Included pages
-- `/` Home / landing page
-- `/listings`
-- `/listings/:id`
-- `/tools`
-- `/guides`
-- `/listing-type-2` (warehouse animation + game)
+## Included routes
+- `/` — landing page
+- `/blog` — guides / neighbourhood insights
+- `/property-list` — searchable listings + map
+- `/property-details?id=...` — property detail template
+- `/tools` — footfall tool + email generator
+- `/warehouse` — warehouse + 3D pallet game page
 
-## Notes
-- The warehouse experience is included inside this same project under `public/warehouse-game/` and embedded on the ListingType2 page.
-- The static HTML pages were ported into React with shared header/footer/modal and page-specific logic rewritten for React routing.
-
-## Run
+## Run locally
 ```bash
 npm install
 npm run dev
 ```
 
-## Build
-```bash
-npm run build
-```
+## Notes
+- The warehouse page is preserved as the approved one-file 3D page and loaded through a React route in an iframe so its camera/game behavior stays intact.
+- Lead capture, hero shortlist request, and tour request forms store demo data in `localStorage`.
+- Listings and blog content live in `src/data/siteData.js`.
