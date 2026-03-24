@@ -35,7 +35,7 @@ html, body, #root{
   padding-top: 24px;
 }
 
-.warehouse-frame{
+/*.warehouse-frame{
   width:100%;
   height:var(--warehouse-frame-height);
   border:0;
@@ -50,7 +50,7 @@ html, body, #root{
   border:1px solid rgba(91,124,255,.14);
   box-shadow:var(--shadow);
 }
-
+*/
 .property-hero-image{
   min-height: 280px;
 }
