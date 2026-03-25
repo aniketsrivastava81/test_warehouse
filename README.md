@@ -1,4 +1,4 @@
-# Megha Mehta React Migration
+# Megha M Website React Migration
 
 This is a Vite + React conversion of the uploaded static project.
 
